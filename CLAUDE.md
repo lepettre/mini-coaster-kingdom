@@ -15,8 +15,9 @@ Isometrisches Freizeitpark-Puzzle: Strecke aus Bauteilen legen, Gäste fahren la
 Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue Physik, rote Oberfläche, Pflicht-Flaggen in der Logik). Die veröffentlichte Fassung entspricht Commit 217c641.
 - **Physik:** Zug am Lifthill-Gipfel langsam (`D.k0` 1,0 statt 1,7). Er kommt nie über die Lifthill-Höhe; ein Anstieg geht nur mit Schwung aus einer Abfahrt und bremst. Folge: Level 1-2 hat ein Teichfeld weniger, 3-6 Par 15, 12 Pool-Rätsel ersetzt. Fahrtanimation: Tempo folgt dem Schwung stufenlos.
 - **Oberfläche:** dunkles, mattes Rot (`C` in `ui.js`); Text auf Fenstern hell (`C.txt`), `C.ink` nur für Rahmen und Text auf Gelb.
-- **Neue Teile (gebaut 2026-10-12):** Bremse `H` (Schwung höchstens 1,2), Booster `V` (+1,5, max. 4), Splash `W` (nur auf Teichfeld am Boden, −1,2), Korkenzieher `C` über zwei Felder (braucht 2,0, kostet 0,4; zwei Track-Einträge `half` 0/1, Wirkung zählt einmal). Werte in `D`/`FRIC`/`effect` in `logic.js`. Baufenster zeigt nur Teile aus `level.inv` (max. 8, ab 7 vier Spalten). Noch in keinem festen Level genutzt.
-- **Pflicht-Flaggen:** Level-Feld `flags:[[i,j],…]`; `judge` verlangt jede Flagge (`flagsHit`), Render zeigt rot-weißen Wimpel (grün, wenn befahren), Statuszeile zählt mit. Noch in keinem festen Level genutzt.
+- **Neue Teile (gebaut 2026-10-12):** Bremse `H` (Schwung höchstens 1,2), Booster `V` (+1,5, max. 4), Splash `W` (nur auf Teichfeld am Boden, −1,2), Korkenzieher `C` über zwei Felder (braucht 2,0, kostet 0,4; zwei Track-Einträge `half` 0/1, Wirkung zählt einmal). Werte in `D`/`FRIC`/`effect` in `logic.js`. Baufenster zeigt nur Teile aus `level.inv` (max. 8, ab 7 vier Spalten). Seit Varianz Phase 2 in festen Leveln.
+- **Pflicht-Flaggen:** Level-Feld `flags:[[i,j],…]`; `judge` verlangt jede Flagge (`flagsHit`), Render zeigt rot-weißen Wimpel (grün, wenn befahren), Statuszeile zählt mit.
+- **Varianz Phase 2 (2026-10-12):** Level 1-4 bis 4-6 neu aus `phase2.js` (Plan-Tabelle `PLAN` je Level: Grundriss P1–P4, Gruppe, Pflicht-Teile, Hindernis, Flaggen, Länge). Kapitel 1 ohne Flaggen, Kap. 2: 1 Flagge + Bremse/Booster, Kap. 3: 2 Flaggen + Korkenzieher, Kap. 4: 2–3 Flaggen + Splash. Die Par-Lösung nutzt immer die neuen Teile des Levels. Überlappung der Musterlösungen 0,46 → 0,26, keine doppelten mehr. Ein Level neu erzeugen: `node phase2.js k3-2`.
 
 ## Befehle
 - Einmalig: `npm install`
@@ -29,13 +30,13 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 - `hb5/parts.js` fehlt. `hb5/stations.js` ruft daraus 16 Funktionen auf (tower, cone, gableRoof2, dormer, stoneTex …), sie stehen nirgends sonst. Für das Spiel unnötig (fertige `hb4/station_*.json` genügen); nur zum Neuerzeugen der Stationen nötig. Stationen ändern = JSON direkt bearbeiten oder parts.js neu schreiben.
 - `levels.json` fehlt; nur `test1.js` und `gen3.js` (alt) brauchen sie.
 - `test1.js`, `themes.js`, `loopsheet.js`, `loopfour.js` nach der Pfad-Umstellung nicht neu geprüft (`test2.js` läuft).
-- Level k1-4, k2-1, k2-4, k3-4, k4-4 haben identische Lösungsmengen (gleiche Strecke) – Kandidaten fürs Varianz-Paket.
+- Senioren sind nicht lösbar: jede Strecke braucht ≥ 2 Kurven und 3 Abfahrten, das übersteigt ihr Übelkeitslimit (3). Zwei Gruppen gleichzeitig (Kinder+Familien) fand der Generator nicht.
+- `sim.js` (alt) stürzt bei Leveln ohne Lösung im kleinen Budget ab.
+- Booster dürfen den Zug über die Lifthill-Höhe bringen (Energie von außen); `phystest.js` nimmt das aus.
 - `hb4/icon-512.png` gibt es nicht mehr; `build.py` bettet nur das 180er-Icon ein (wie in der veröffentlichten Version).
 
 ## Geplant, noch NICHT gebaut (nur auf Auftrag)
-Varianz-Paket: bisher nutzen alle 24 Level denselben Grundriss, Pflicht-Flaggen fehlen. Level 1-1 bis 1-3 bleiben unverändert, Level ab 1-4 würden fest in `levels24.json` stehen. Gewünschter Weg: fester Baukasten statt teurem Zufallswalk (Hindernis-Schablonen L, Zeile, Zickzack, Doppelteich; feste Flaggenplätze je Grundriss; Strecke bestehender Level als bekannte Lösung wiederverwenden; ein einziger Solver-Lauf prüft die Lösungszahl). Nur für neue Grundrisse P3 (lange Rückstrecke) und P4 (9×9) ein Walk mit kleinem Budget. Zufallsmodus (`genb.js`, `pool.json`) bleibt unverändert.
-Phase 1 erledigt (2026-10-12): drei Testvarianten in `varianz_test.json` (V1 P3 + L-Hindernis, V2 P4 9×9 + Flagge + Zickzack, V3 P1 + zwei Flaggen + Doppelteich), alle mit 3 Sternen gespielt, ohne Flagge 0 Sterne. **Wartet auf Jans Freigabe**, erst dann Phase 2 (Level ab 1-4 neu in `levels24.json`).
-Neue Teile sind gebaut (Kamelbuckel gestrichen). Nächster Schritt: Varianz Phase 2 – neue Teile schrittweise einführen (Vorschlag: Bremse+Booster ab Kapitel 2, Korkenzieher ab 3, Splash ab 4).
+Varianz-Paket ist umgesetzt (Phase 1 Testvarianten, neue Teile, Phase 2 Level). Zufallsmodus (`genb.js`, `pool.json`) nutzt weiter nur die alten Teile und einen Grundriss.
 Nur besprochen, nicht beschlossen: Kreuzungen, Steilabfahrt, Tunnel.
 Weitere offene Punkte: Tagesrätsel; Senioren als Gäste (mit der Bremse jetzt vermutlich lösbar, nicht geprüft); Ziel-Fahne evtl. durch Ziel-Schild ersetzen (Verwechslung mit Pflicht-Flaggen).
 

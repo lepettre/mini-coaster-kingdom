@@ -10,7 +10,7 @@ const D4=[[1,0],[0,1],[-1,0],[0,-1]],key=(i,j)=>i+','+j;
 
 // id: [Grundriss, Gruppen, Pflicht-Teile, Hindernis, Flaggen, min, max, Looping erlaubt]
 const PLAN={
- 'k1-4':['P1',['kids'],'', 'Zeile',0,8,11,0],
+ 'k1-4':['P1',['kids'],'', 'Zeile',0,9,12,0],
  'k1-5':['P2',['fam'],'', 'L',0,8,12,0],
  'k1-6':['P1',['teens'],'', 'Zickzack',0,10,13,1],
  'k2-1':['P2',['kids'],'H','Zeile',1,8,12,0],
@@ -28,7 +28,7 @@ const PLAN={
  'k4-1':['P2',['fam'],'W','Zeile',2,10,14,0],
  'k4-2':['P4',['teens'],'WV','Zickzack',2,12,16,1],
  'k4-3':['P3',['fans'],'CW','L',2,12,16,1],
- 'k4-4':['P1',['kids'],'W','Doppelteich',2,9,14,0],
+ 'k4-4':['P1',['fam'],'W','Doppelteich',2,10,14,0],
  'k4-5':['P4',['fans'],'CV','Zickzack',3,13,17,1],
  'k4-6':['P4',['fans'],'CW','L',3,14,19,1]};
 
