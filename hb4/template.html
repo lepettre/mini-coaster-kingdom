@@ -230,6 +230,8 @@ function menuWin(){
   menuBtn('mrnd',x,y0+130,w,'ZUFALL',()=>{overlay='rand'},'Immer neue Rätsel');
   menuBtn('mhelp',x,y0+162,w,'HILFE',()=>{overlay='help'});
   const st=totalStars()+' / '+LEVELS.length*3;star(Math.floor(Wu/2)-HBUI.textW(st)/2-16,y0+194,true);T(Math.floor(Wu/2)-Math.floor(HBUI.textW(st)/2)+2,y0+197,st,C.white,C.ink);
+  // Fußzeile: Hinweis auf Hobbyprojekt und Datenschutz (keine Daten verlassen das Gerät)
+  ["Hobbyprojekt, nicht kommerziell.","Spielstand bleibt auf dem Gerät."].forEach((s,k)=>T(Math.floor((Wu-HBUI.textW(s))/2),Math.min(Hu-24,y0+222)+k*10,s,'#D9B7A5',C.ink));
 }
 function levelsWin(){
   const w=Math.min(176,Wu-10),h=144,p=dialogBase(w,h,'Level'),x=p.x,y=p.y,nch=Math.ceil(LEVELS.length/6);

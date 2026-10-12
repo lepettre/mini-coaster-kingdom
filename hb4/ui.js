@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const U = 2; // 1 UI-Pixel = 2 Bildschirmpunkte
-  // Fensterfarben: dunkles, mattes Rot wie in RCT2; Text darauf hell (txt), ink bleibt dunkel für Rahmen und Text auf Gelb
+  // Fensterfarben: dunkles, mattes Rot; Text darauf hell (txt), ink bleibt dunkel für Rahmen und Text auf Gelb
   const C = { ink: '#1A0A08', txt: '#F4E4CC', face: '#7A2A23', hi: '#A9554A', lo: '#3F1310', title: '#4E1611', title2: '#3A0F0B', inset: '#55201B', btn: '#8E372E', btnP: '#6A251F', yel: '#F2C12E', red: '#C22A22', grn: '#3B8528', org: '#E07A1F', dis: '#B98A80', white: '#FFFFFF' };
 
   // ---- 5x7 Pixelschrift: [y0, Zeilen] ----

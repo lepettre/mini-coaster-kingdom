@@ -2,7 +2,7 @@ const chromium=require('@sparticuz/chromium').default||require('@sparticuz/chrom
 const puppeteer=require('puppeteer-core');const {createCanvas,loadImage}=require('@napi-rs/canvas');const fs=require('fs');const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{const browser=await puppeteer.launch({args:[...chromium.args,'--no-sandbox'],executablePath:await chromium.executablePath(),headless:'shell'});
  const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:2});const errs=[];page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
- await page.goto('file://'+require('path').resolve('dist/mini-coaster-kingdom.html'));await sleep(1300);const ev=(f,...a)=>page.evaluate(f,...a);
+ await page.goto('file://'+require('path').resolve('../index.html'));await sleep(1300);const ev=(f,...a)=>page.evaluate(f,...a);
  const tap=async id=>{let h=null;for(let k=0;k<50&&!h;k++){await sleep(100);h=(await ev(()=>window.__hb.hits())).find(x=>x.id===id)}if(!h)throw new Error('no hit '+id);await page.mouse.click((h.x+h.w/2)*2,(h.y+h.h/2)*2);await sleep(250)};
  await ev(()=>{window.__hb.lvl(2);window.__hb.close()});await sleep(500);
  for(const k of ['G','G','P']){const cur=await ev(()=>window.__hb.get().sel);if(cur!==k)await tap('p'+k);await tap('build')}

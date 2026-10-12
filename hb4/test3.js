@@ -8,7 +8,7 @@ const solSeq=l=>{const r=HB.solve(l,400,300000);const c=r.sols.filter(s=>s.cente
  const idx=process.argv.length>2?process.argv.slice(2).map(Number):LV.map((_,i)=>i);
  for(const i of idx){
   const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:1});page.on('pageerror',e=>errs.push(e.message));
-  await page.goto('file://'+require('path').resolve('dist/mini-coaster-kingdom.html'));await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
+  await page.goto('file://'+require('path').resolve('../index.html'));await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
   await ev(i=>{window.__hb.lvl(i);window.__hb.close()},i);await sleep(400);
   const s=solSeq(LV[i]);await ev(q=>window.__hb.place(q),s.seq);
   await ev(()=>window.__hb.go());let ok=false;for(let k=0;k<200;k++){await sleep(300);if(await ev(()=>window.__hb.get().overlay)==='result'){ok=true;break}}

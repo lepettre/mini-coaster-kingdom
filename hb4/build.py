@@ -15,5 +15,5 @@ icon=('<link rel="apple-touch-icon" href="data:image/png;base64,%s">\n<link rel=
  '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="apple-mobile-web-app-title" content="Mini Coaster Kingdom">')%(b64('icon-180.png'),b64('icon-180.png'),base64.b64encode(json.dumps(man,ensure_ascii=False).encode()).decode())
 t=t.replace('<!--ICON-->',icon)
 os.makedirs('dist',exist_ok=True)
-open('dist/varianz-vorschau.html' if VZ else 'dist/mini-coaster-kingdom.html','w').write(t)
+open('dist/varianz-vorschau.html' if VZ else '../index.html','w').write(t)
 print(len(t)//1024,'KB',len(lv),'Level',len(pool),'Pool')

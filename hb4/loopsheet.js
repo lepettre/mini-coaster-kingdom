@@ -8,7 +8,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   for(let din=0;din<4;din++){
     const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:3});
     page.on('pageerror',e=>errs.push(e.message));page.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
-    await page.goto('file://'+require('path').resolve('dist/mini-coaster-kingdom.html'));await sleep(1200);
+    await page.goto('file://'+require('path').resolve('../index.html'));await sleep(1200);
     await page.evaluate(()=>window.__hb.close());
     const n=await page.evaluate((p,d)=>window.__hb.dbgLoop(p[0],p[1],d),pos[din],din);
     if(din===0)console.log('samples',n);

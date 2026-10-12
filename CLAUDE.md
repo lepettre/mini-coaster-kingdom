@@ -1,6 +1,6 @@
 # Mini Coaster Kingdom (früher „Hängebahn")
 
-Puzzle im Stil von RollerCoaster Tycoon: Strecke aus Bauteilen legen, Gäste fahren lassen. 24 feste Level in 4 Kapiteln plus Zufallsmodus. Wird aus `hb4/` zu EINER HTML-Datei gebaut. Besitzer: Jan. Details: README.md.
+Isometrisches Freizeitpark-Puzzle: Strecke aus Bauteilen legen, Gäste fahren lassen. 24 feste Level in 4 Kapiteln plus Zufallsmodus. Wird aus `hb4/` zu EINER HTML-Datei gebaut. Besitzer: Jan. Details: README.md.
 
 ## Arbeitsregeln (immer einhalten)
 - Deutsch, kurz.
@@ -9,16 +9,17 @@ Puzzle im Stil von RollerCoaster Tycoon: Strecke aus Bauteilen legen, Gäste fah
 - Nichts erfinden; Annahmen als offene Frage kennzeichnen.
 - Token sparen; Fehler per Testskript finden, nicht per Screenshot-Orgie.
 - Nach jeder Phase: Ergebnis plus Testliste (5 Punkte).
+- Rechtlich sauber: keine Namen, Marken, Figuren oder Grafiken fremder Spiele, Parks oder Firmen in Code, Spieltexten, Doku oder Commit-Nachrichten. Alle Grafiken werden selbst per Code erzeugt. Keine Tracker, keine externen Dateien; der Spielstand bleibt im Browser (localStorage). Hinweise dazu: Menü-Fußzeile und Abschnitt „Rechtliches“ in README.md.
 
 ## Stand
 Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue Physik, rote Oberfläche, Pflicht-Flaggen in der Logik). Die veröffentlichte Fassung entspricht Commit 217c641.
 - **Physik:** Zug am Lifthill-Gipfel langsam (`D.k0` 1,0 statt 1,7). Er kommt nie über die Lifthill-Höhe; ein Anstieg geht nur mit Schwung aus einer Abfahrt und bremst. Folge: Level 1-2 hat ein Teichfeld weniger, 3-6 Par 15, 12 Pool-Rätsel ersetzt. Fahrtanimation: Tempo folgt dem Schwung stufenlos.
-- **Oberfläche:** dunkles, mattes Rot wie RCT2 (`C` in `ui.js`); Text auf Fenstern hell (`C.txt`), `C.ink` nur für Rahmen und Text auf Gelb.
+- **Oberfläche:** dunkles, mattes Rot (`C` in `ui.js`); Text auf Fenstern hell (`C.txt`), `C.ink` nur für Rahmen und Text auf Gelb.
 - **Pflicht-Flaggen:** Level-Feld `flags:[[i,j],…]`; `judge` verlangt jede Flagge (`flagsHit`), Render zeigt rot-weißen Wimpel (grün, wenn befahren), Statuszeile zählt mit. Noch in keinem festen Level genutzt.
 
 ## Befehle
 - Einmalig: `npm install`
-- Bauen: `cd hb4 && python3 build.py` → `hb4/dist/mini-coaster-kingdom.html`
+- Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
 - Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus). Screenshots landen in `hb4/out/`.
 - Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `dist/varianz-vorschau.html`; `node vtest.js` spielt sie durch.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
@@ -37,7 +38,7 @@ Nur besprochen, nicht beschlossen: Kreuzungen, Korkenzieher C (in `logic.js` unt
 Weitere offene Punkte: Tagesrätsel; Senioren als Gäste sind mit festem Aufbau nicht lösbar.
 
 ## Veröffentlichen
-Die Datei `hb4/dist/mini-coaster-kingdom.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
+Die Datei `index.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
 
 ## Looping-Entscheidungen (nicht rückgängig machen)
 Tropfenform, seitlicher Versatz 0,35, Folgeteil führt Spur zurück, Physik: Looping braucht Schwung 2,6; ohne Schwung rollt der Zug zurück, Fehlermeldung, Strecke weg. Stilwahl je Landschaft: Wiese Chalet (B1), Winter Märchenburg (A2), Wüste Westernstadt (D1), Küste Villa (C1). Icon C (Abendburg, Looping ohne Wagen, durchgehende Strecke).

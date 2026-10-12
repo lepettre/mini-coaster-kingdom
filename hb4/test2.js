@@ -6,7 +6,7 @@ const solSeq=l=>{const r=HB.solve(l,400,300000);const c=r.sols.filter(s=>s.cente
   const browser=await puppeteer.launch({args:[...chromium.args,'--no-sandbox'],executablePath:await chromium.executablePath(),headless:'shell'});
   const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:2});
   const errs=[];page.on('pageerror',e=>errs.push('ERR '+e.message));page.on('console',m=>{if(m.type()==='error')errs.push('CON '+m.text())});
-  await page.goto('file://'+require('path').resolve('dist/mini-coaster-kingdom.html'));await sleep(1500);
+  await page.goto('file://'+require('path').resolve('../index.html'));await sleep(1500);
   const ev=(fn,...a)=>page.evaluate(fn,...a);
   const hits=async()=>(await ev(()=>window.__hb.hits())).map(h=>h.id).join(',');
   const tap=async id=>{let h=null;for(let k=0;k<50&&!h;k++){await sleep(100);h=(await ev(()=>window.__hb.hits())).find(x=>x.id===id)}if(!h)throw new Error('no hit '+id+' have '+await hits());await page.mouse.click((h.x+h.w/2)*2,(h.y+h.h/2)*2);await sleep(300)};
