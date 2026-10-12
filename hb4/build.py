@@ -6,6 +6,8 @@ TT=len(sys.argv)>1 and sys.argv[1]=='teile'
 t=open('template.html').read()
 t=t.replace('/*LOGIC*/',open('logic.js').read()).replace('/*GENB*/',open('genb.js').read()).replace('/*RENDER*/',open('render.js').read()).replace('/*UI*/',open('ui.js').read())
 lv=json.load(open('varianz_test.json' if VZ else 'teile_test.json' if TT else 'levels24.json'))
+# Vorschau: Testvarianten plus Testlevel der neuen Teile
+if VZ: lv=lv+json.load(open('teile_test.json'))
 t=t.replace('/*LEVELS*/[]',json.dumps(lv,separators=(',',':'),ensure_ascii=False))
 pool=json.load(open('pool.json')) if os.path.exists('pool.json') else []
 t=t.replace('/*POOL*/[]',json.dumps(pool,separators=(',',':')))
