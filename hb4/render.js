@@ -76,7 +76,7 @@
   }
 
   // ---------- Strecke ----------
-  const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const CKR = .38, CKZ = .75, LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const LOOP = (function () {
     const N = 72, A = .35, g = [], w = []; let tot = 0;
     for (let k = 0; k < 1200; k++) { const sg = (k + .5) / 1200, v = A + (1 - A) * (1 - Math.cos(2 * Math.PI * sg)) / 2; g.push(v); tot += v; }
@@ -95,11 +95,12 @@
       for (let k = 0; k <= 14; k++) { const a = a0 + d * k / 14; out.push([C0[0] + Math.cos(a) * .5, C0[1] + Math.sin(a) * .5, p.z0 + (p.z1 - p.z0) * k / 14]); }
     } else {
       const n = p.type === 'L' ? 72 : p.type === 'C' ? 24 : 10, perp = [-di[1], di[0]];
+      // Korkenzieher über zwei Felder: Drehung um die Längsachse (rot 0..2π), Mitte kreist mit Radius CKR um die Achse
+      if (p.type === 'C') { for (let k = 0; k <= n; k++) { const t = ((p.half || 0) + k / n) / 2, th = 2 * Math.PI * t - Math.sin(2 * Math.PI * t), lat = CKR * Math.sin(th), up = CKZ * (1 - Math.cos(th)); out.push([E[0] + di[0] * k / n + perp[0] * lat, E[1] + di[1] * k / n + perp[1] * lat, p.z0 + up, th, perp]); } return out; }
       for (let k = 0; k <= n; k++) {
         if (p.type === 'L') { const Lq = LOOP[k]; const lt = LDEL * smt(k / n); out.push([E[0] + di[0] * Lq[0] + di[1] * lt, E[1] + di[1] * Lq[0] + di[0] * lt, p.z0 + Lq[1], Lq[2], Lq[3], k / n]); continue; }
         const t = k / n; let along = t, up = 0, lat = 0;
         if (p.type === 'L') { const th = 2 * Math.PI * t; along = (th + 2.6 * Math.sin(th)) / (2 * Math.PI); up = 1.0 * (1 - Math.cos(th)); lat = .6 * Math.sin(th) * (1 - Math.cos(th)) / 2; }
-        else if (p.type === 'C') { lat = .15 * Math.sin(4 * Math.PI * t); up = .1 * (1 - Math.cos(4 * Math.PI * t)); }
         out.push([E[0] + di[0] * along + perp[0] * lat, E[1] + di[1] * along + perp[1] * lat, p.z0 + (p.z1 - p.z0) * t + up]);
       }
     }
@@ -107,7 +108,7 @@
   }
   function buildPath(run, ride) {
     const S = [], nT = run.track.length;
-    const addPiece = (p, pi, skipFirst, brk) => { const sm = pieceSamples(p); sm.forEach((q, k) => { if (k === 0 && skipFirst) return; const e = { x: q[0], y: q[1], z: q[2], pi, ty: p.type }; if (p.type === 'L') { e.phi = q[3]; e.lh = q[4]; e.ls = q[5]; e.ev = DV[p.din]; } if (k === 0 && brk) e.brk = true; S.push(e); }); };
+    const addPiece = (p, pi, skipFirst, brk) => { const sm = pieceSamples(p); sm.forEach((q, k) => { if (k === 0 && skipFirst) return; const e = { x: q[0], y: q[1], z: q[2], pi, ty: p.type }; if (p.type === 'L') { e.phi = q[3]; e.lh = q[4]; e.ls = q[5]; e.ev = DV[p.din]; } if (p.type === 'C') { e.rot = q[3]; e.cp = q[4]; } if (k === 0 && brk) e.brk = true; S.push(e); }); };
     run.track.forEach((p, pi) => addPiece(p, pi, pi > 0, false));
     const stationMid = Math.floor(pieceSamples(run.track[0]).length / 2);
     (run.ret || []).forEach((p, k) => {
@@ -143,7 +144,7 @@
     const { S, D } = path, last = S.length - 1; let lo = 0, f = 0;
     if (s <= 0) { lo = 0; } else if (s >= D[last]) { lo = last - 1; f = 1; } else { let hi = last; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= s) lo = m; else hi = m; } f = (s - D[lo]) / ((D[lo + 1] - D[lo]) || 1); }
     const a = S[lo], b = S[lo + 1];
-    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, pi: a.pi, ty: a.ty, k: lo, phi: a.phi === undefined ? undefined : a.phi + (b.phi - a.phi) * f, lh: a.lh === undefined ? undefined : a.lh + (b.lh - a.lh) * f, ev: a.ev, dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, pi: a.pi, ty: a.ty, k: lo, phi: a.phi === undefined ? undefined : a.phi + (b.phi - a.phi) * f, lh: a.lh === undefined ? undefined : a.lh + (b.lh - a.lh) * f, rot: a.rot === undefined ? undefined : a.rot + ((b.rot === undefined ? a.rot : b.rot) - a.rot) * f, cp: a.cp, ev: a.ev, dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
   }
 
   function makeDecor(seed, N, theme, reserved) {
@@ -289,6 +290,11 @@
     const rail = yy => { [.18, .34].forEach(h => { const r0 = P(gi - 1, gj + yy, h), r1 = P(gi + .5, gj + yy, h); pl(c, r0[0], r0[1], r1[0], r1[1], R.stone[3], 1); }); for (let k = 0; k <= 3; k++) { const pp = P(gi - 1 + k * .5, gj + yy, 0), pq = P(gi - 1 + k * .5, gj + yy, .36); pl(c, pp[0], pp[1], pq[0], pq[1], R.stone[2], 2); } };
     rail(.1); rail(.9);
   }
+  // Lamellen auf einem geraden Feld in Fahrtrichtung (Bremse gelb/schwarz, Booster orange/blau)
+  function drawFins(c, P, p, cols) {
+    const d = DV[p.din], z = p.z0 + .1;
+    for (let k = 0; k < 5; k++) { const a = .14 + k * .18; if (d[0]) box(c, P, p.i + (d[0] > 0 ? a : 1 - a - .08), p.j + .4, z, .08, .2, .09, cols[k % 2], null); else box(c, P, p.i + .4, p.j + (d[1] > 0 ? a : 1 - a - .08), z, .2, .08, .09, cols[k % 2], null); }
+  }
   function drawBrake(c, P, bi, bj) {
     for (let k = 0; k < 5; k++) { const x = bi + .14 + k * .18; box(c, P, x, bj + .3, .06, .08, .4, .1, k % 2 ? R.base[3] : R.yellow[3], null); }
   }
@@ -334,6 +340,7 @@
     if (S.gate) items.push({ d: S.gate[0] + S.gate[1] + .55 + .6, f: c => drawGate(c, P, S.gate[0], S.gate[1], tc) });
     }
     items.push({ d: run.exit.i + run.exit.j + .55, f: c => drawBrake(c, P, run.exit.i, run.exit.j) });
+    run.track.forEach(p => { if (p.type === 'H' || p.type === 'V') items.push({ d: p.i + p.j + 1.06 + p.z0 * .012, f: c => drawFins(c, P, p, p.type === 'H' ? [R.yellow[3], R.base[3]] : [R.orange[3], R.cyan[1]]) }); });
     let pn = [0, 1];
     for (let k = 0; k < Sm.length - 1; k++) {
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
@@ -347,8 +354,9 @@
         }
         const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
         pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
-        if (k % 2 === 0) { const t0 = P(a.x - nx * .19, a.y - ny * .19, a.z), t1 = P(a.x + nx * .19, a.y + ny * .19, a.z); pl(c, t0[0], t0[1] + 2, t1[0], t1[1] + 2, R.stone[1], 1); pl(c, t0[0], t0[1] + 1, t1[0], t1[1] + 1, R.stone[3], 1); }
-        [-1, 1].forEach(sg => { const r0 = P(a.x + nx * .115 * sg, a.y + ny * .115 * sg, a.z), r1 = P(b.x + nx * .115 * sg, b.y + ny * .115 * sg, b.z); pl(c, r0[0], r0[1] + 2, r1[0], r1[1] + 2, tc[0], 1); pl(c, r0[0], r0[1] + 1, r1[0], r1[1] + 1, tc[1], 1); pl(c, r0[0], r0[1], r1[0], r1[1], tc[2], 1); pl(c, r0[0], r0[1] - 1, r1[0], r1[1] - 1, tc[3], 1); pl(c, r0[0], r0[1] - 2, r1[0], r1[1] - 2, tc[4], 1); });
+        const ca = a.rot === undefined ? 1 : Math.cos(a.rot), sa = a.rot === undefined ? 0 : Math.sin(a.rot), cb = b.rot === undefined ? ca : Math.cos(b.rot), sb = b.rot === undefined ? sa : Math.sin(b.rot);
+        if (k % 2 === 0) { const t0 = P(a.x - nx * .19 * ca, a.y - ny * .19 * ca, a.z - .38 * sa), t1 = P(a.x + nx * .19 * ca, a.y + ny * .19 * ca, a.z + .38 * sa); pl(c, t0[0], t0[1] + 2, t1[0], t1[1] + 2, R.stone[1], 1); pl(c, t0[0], t0[1] + 1, t1[0], t1[1] + 1, R.stone[3], 1); }
+        [-1, 1].forEach(sg => { const r0 = P(a.x + nx * .115 * sg * ca, a.y + ny * .115 * sg * ca, a.z + .23 * sg * sa), r1 = P(b.x + nx * .115 * sg * cb, b.y + ny * .115 * sg * cb, b.z + .23 * sg * sb); pl(c, r0[0], r0[1] + 2, r1[0], r1[1] + 2, tc[0], 1); pl(c, r0[0], r0[1] + 1, r1[0], r1[1] + 1, tc[1], 1); pl(c, r0[0], r0[1], r1[0], r1[1], tc[2], 1); pl(c, r0[0], r0[1] - 1, r1[0], r1[1] - 1, tc[3], 1); pl(c, r0[0], r0[1] - 2, r1[0], r1[1] - 2, tc[4], 1); });
       } });
     }
     return items;
@@ -383,9 +391,11 @@
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {
       const q = posAt(S.ridePath, cs), cz = q.z + .08, cp = P(q.x, q.y, q.z); boxes.push([cp[0] - 40, cp[1] - 50, 80, 90]);
+      if (q.ty === 'W') dyn.push({ d: q.x + q.y + .9, f: c2 => { for (let k = 0; k < 14; k++) { const a = hsh(k, ci, Math.floor(t * 12)) * 6.28, r = 6 + hsh(k, ci + 7, Math.floor(t * 12)) * 12; rect(c2, cp[0] + Math.cos(a) * r, cp[1] - 4 - Math.abs(Math.sin(a)) * r * .9, 2, 2, k % 3 ? '#FFFFFF' : R.water[3]); } } });
       dyn.push({ d: q.x + q.y + .5 + q.z * .02, f: c2 => {
-        if (q.ty === 'L' && q.phi !== undefined) {
-          const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi), N = [-ev[0] * sn, -ev[1] * sn, cs], rv = [-ev[1], ev[0], 0], F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
+        if ((q.ty === 'L' && q.phi !== undefined) || (q.ty === 'C' && q.rot !== undefined)) {
+          let N, rv; if (q.ty === 'L') { const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi); N = [-ev[0] * sn, -ev[1] * sn, cs]; rv = [-ev[1], ev[0], 0]; } else { const sn = Math.sin(q.rot), cs = Math.cos(q.rot), cp = q.cp; N = [-cp[0] * sn, -cp[1] * sn, cs]; rv = [cp[0] * cs, cp[1] * cs, sn]; }
+          const F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
           const at = (h, sd) => [q.x + N[0] * h + rv[0] * (sd || 0), q.y + N[1] * h + rv[1] * (sd || 0), q.z + N[2] * h + rv[2] * (sd || 0)];
           const b0 = at(.14); obox(c2, P, b0[0], b0[1], b0[2], F, .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0], op);
           const b1 = at(.21); obox(c2, P, b1[0], b1[1], b1[2], F, .1, .115, .018, R.base[1], null, op);
@@ -406,13 +416,14 @@
     if (theme === 'winter') for (let k = 0; k < 60; k++) { const px = (hsh(k, 3, 9) * L.W + t * (7 + (k % 5))) % L.W, py = (hsh(k, 5, 7) * L.H + t * (16 + (k % 7) * 2)) % L.H; rect(c, px, py, 2, 2, '#FFFFFF'); }
     if (S.ghost) {
       const gh = S.ghost, z = (gh.z0 + gh.z1) / 2, i = gh.i, j = gh.j, ok = gh.valid;
-      dither(c, [P(i + .06, j + .06, z), P(i + .94, j + .06, z), P(i + .94, j + .94, z), P(i + .06, j + .94, z)], ok ? (gh.stall ? '#FF9A3C' : '#FFE27A') : '#E25046');
-      const sm = pieceSamples({ i, j, din: gh.din, dout: gh.dout, z0: gh.z0, z1: gh.z1, type: gh.type }), col = ok ? '#FFFFFF' : '#FFD2CE';
+      const tiles = gh.i2 !== undefined ? [[i, j, 0], [gh.i2, gh.j2, 1]] : [[i, j]];
+      tiles.forEach(tl => dither(c, [P(tl[0] + .06, tl[1] + .06, z), P(tl[0] + .94, tl[1] + .06, z), P(tl[0] + .94, tl[1] + .94, z), P(tl[0] + .06, tl[1] + .94, z)], ok ? (gh.stall ? '#FF9A3C' : '#FFE27A') : '#E25046'));
+      const sm = [].concat(...tiles.map(tl => pieceSamples({ i: tl[0], j: tl[1], din: gh.din, dout: gh.dout, z0: gh.z0, z1: gh.z1, type: gh.type, half: tl[2] }))), col = ok ? '#FFFFFF' : '#FFD2CE';
       for (let k = 0; k < sm.length - 1; k++) { const p = P(sm[k][0], sm[k][1], sm[k][2] + .05), q = P(sm[k + 1][0], sm[k + 1][1], sm[k + 1][2] + .05); pl(c, p[0], p[1], q[0], q[1], col, 3); }
       const gc = P(i + .5, j + .5, 0), gt = P(i + .5, j + .5, z); for (let y = gt[1]; y < gc[1]; y += 3) rect(c, gc[0], y, 1, 1, '#FFFFFF');
       const m = P(i + .5, j + .5, z);
       if (!ok) { pl(c, m[0] - 6, m[1] - 6, m[0] + 6, m[1] + 6, '#FFFFFF', 3); pl(c, m[0] + 6, m[1] - 6, m[0] - 6, m[1] + 6, '#FFFFFF', 3); }
-      else { const e = P(i + .5 + DV[gh.dout][0] * .3, j + .5 + DV[gh.dout][1] * .3, gh.z1 + .05); rect(c, e[0] - 2, e[1] - 2, 5, 5, '#FFFFFF'); }
+      else { const ei = gh.i2 !== undefined ? gh.i2 : i, ej = gh.i2 !== undefined ? gh.j2 : j, e = P(ei + .5 + DV[gh.dout][0] * .3, ej + .5 + DV[gh.dout][1] * .3, gh.z1 + .05); rect(c, e[0] - 2, e[1] - 2, 5, 5, '#FFFFFF'); }
       boxes.push([m[0] - 50, m[1] - 40, 100, 90]);
     }
     if (S.target && S.pulse && Math.sin(t * 7) > 0) { const e = S.target, pts = [P(e.i + .04, e.j + .04, 0), P(e.i + .96, e.j + .04, 0), P(e.i + .96, e.j + .96, 0), P(e.i + .04, e.j + .96, 0)]; for (let k = 0; k < 4; k++) { const p = pts[k], q = pts[(k + 1) % 4]; pl(c, p[0], p[1], q[0], q[1], '#FFFFFF', 2); } }

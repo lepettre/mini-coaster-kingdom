@@ -41,11 +41,15 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     A: { name: 'Anstieg', type: 'A', a: 0, u: 0, tempo: -1 },
     B: { name: 'Abfahrt', type: 'B', a: 3, u: 1, tempo: 1 },
     P: { name: 'Looping', type: 'L', a: 4, u: 3, tempo: 0 },
-    C: { name: 'Korkenzieher', type: 'C', a: 3, u: 3, tempo: 0 }
+    C: { name: 'Korkenzieher', type: 'C', a: 3, u: 3, tempo: 0, len: 2 },
+    H: { name: 'Bremse', type: 'H', a: 0, u: 0, tempo: -1 },
+    V: { name: 'Booster', type: 'V', a: 2, u: 1, tempo: 1 },
+    W: { name: 'Splash', type: 'W', a: 2, u: 0, tempo: -1 }
   };
-  const ORDER = ['G', 'L', 'R', 'A', 'B', 'P'];
-  const FRIC = { G: .07, K: .09, A: .07, B: .07, L: .45, C: .25 };
-  const D = { n: 8, lift: 3, zmax: 4, k0: 1.0, sr: 3, loopK: 2.6 };
+  const ORDER = ['G', 'L', 'R', 'A', 'B', 'P', 'H', 'V', 'W', 'C'];
+  const FRIC = { G: .07, K: .09, A: .07, B: .07, L: .45, C: .4, H: .07, V: .07, W: 1.2 };
+  // corkK: Mindestschwung Korkenzieher; brakeMax: Bremse senkt Schwung höchstens darauf; boost: Booster gibt Schwung dazu (bis kMax)
+  const D = { n: 8, lift: 3, zmax: 4, k0: 1.0, sr: 3, loopK: 2.6, corkK: 2.0, brakeMax: 1.2, boost: 1.5, kMax: 4 };
 
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -55,10 +59,11 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     for (let s = 1; s <= lift; s++) track.push({ i: st[0] + s, j: st[1], z0: s - 1, z1: s, din: 0, dout: 0, type: 'T' });
     const ret = level.ret.map(r => ({ i: r[0], j: r[1], z0: 0, z1: 0, din: r[2], dout: r[3], type: r[2] === r[3] ? 'G' : 'K', ret: true }));
     const blocked = level.blocked.map(b => ({ i: b[0], j: b[1] })).concat(level.deco.map(b => ({ i: b[0], j: b[1] })), ret.map(r => ({ i: r.i, j: r.j })));
-    return { level, n, lift, zmax: D.zmax, groups: level.groups.map(id => GROUPS[id]), inv: Object.assign({}, level.inv), blocked, ret, exit: { i: ret[0].i, j: ret[0].j, dir: ret[0].din }, track, hist: [], flags: (level.flags || []).map(f => ({ i: f[0], j: f[1] })),
+    return { level, n, lift, zmax: D.zmax, groups: level.groups.map(id => GROUPS[id]), inv: Object.assign({}, level.inv), blocked, ret, exit: { i: ret[0].i, j: ret[0].j, dir: ret[0].din }, track, hist: [], pond: new Set(level.blocked.map(b => b[0] + ',' + b[1])), flags: (level.flags || []).map(f => ({ i: f[0], j: f[1] })),
       head: { i: st[0] + lift, j: st[1], z: lift, dir: 0, k: D.k0, turn: 0, last: null }, placed: 0, thrill: 0, nausea: 0, stall: null };
   }
-  function occupied(run, i, j) { return run.track.some(p => p.i === i && p.j === j) || run.blocked.some(p => p.i === i && p.j === j); }
+  // Splash (W) darf auf Teichfelder, alles andere nicht
+  function occupied(run, i, j, water) { return run.track.some(p => p.i === i && p.j === j) || run.blocked.some(p => p.i === i && p.j === j && !(water && run.pond && run.pond.has(i + ',' + j))); }
 
   function ghost(run, kind) {
     const K = KINDS[kind], h = run.head, n = run.n;
@@ -66,14 +71,19 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     const dout = K.type === 'K' ? (h.dir + (K.turn > 0 ? 1 : 3)) % 4 : h.dir;
     const z1 = K.type === 'A' ? h.z + 1 : K.type === 'B' ? h.z - 1 : h.z;
     const g = { kind, i, j, din: h.dir, dout, z0: h.z, z1, type: K.type, turn: K.turn || 0, valid: true, reason: '' };
-    const kExit = h.k - (z1 - h.z) - FRIC[K.type];
+    const kExit = K.type === 'H' ? Math.min(h.k - FRIC.H, D.brakeMax) : K.type === 'V' ? Math.min(D.kMax, h.k + D.boost) - FRIC.V : h.k - (z1 - h.z) - FRIC[K.type];
+    const len = K.len || 1, i2 = i + DV[h.dir][0] * (len - 1), j2 = j + DV[h.dir][1] * (len - 1), out = (a, b) => a < 0 || b < 0 || a >= n || b >= n;
+    if (len > 1) { g.i2 = i2; g.j2 = j2; }
     if (run.stall) { g.valid = false; g.reason = 'Zug bleibt schon hängen'; }
     else if ((run.inv[kind] || 0) <= 0) { g.valid = false; g.reason = 'Keine mehr'; }
-    else if (i < 0 || j < 0 || i >= n || j >= n) { g.valid = false; g.reason = 'Parkrand'; }
-    else if (occupied(run, i, j)) { g.valid = false; g.reason = 'Belegt'; }
+    else if (out(i, j) || out(i2, j2)) { g.valid = false; g.reason = 'Parkrand'; }
+    else if (occupied(run, i, j, K.type === 'W') || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Belegt'; }
+    else if (K.type === 'W' && !run.pond.has(i + ',' + j)) { g.valid = false; g.reason = 'Nur durch Wasser'; }
+    else if (K.type === 'W' && h.z !== 0) { g.valid = false; g.reason = 'Nur am Boden'; }
     else if (z1 < 0) { g.valid = false; g.reason = 'Schon am Boden'; }
     else if (z1 > run.zmax) { g.valid = false; g.reason = 'Zu hoch'; }
     else if (K.type === 'L' && h.k < D.loopK) { g.stall = true; g.stallF = .35; g.reason = 'Zu langsam - Zug bleibt hängen'; }
+    else if (K.type === 'C' && h.k < D.corkK) { g.stall = true; g.stallF = .3; g.reason = 'Zu langsam - Zug bleibt hängen'; }
     else if (kExit < 0.2) { const loss = h.k - kExit; g.stall = true; g.stallF = Math.min(.9, Math.max(.1, (h.k - .2) / (loss || 1))); g.reason = 'Kein Schwung - Zug bleibt hängen'; }
     g.kExit = kExit; return g;
   }
@@ -85,22 +95,30 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
       case 'A': t = .3; break;
       case 'B': t = 1 + 1.8 * v; n = .4 * v; break;
       case 'L': t = 5 + 2 * v; n = 3 + .8 * v; break;
-      case 'C': t = 3 + v; n = 3.2 + .6 * v; break;
+      case 'C': t = 4 + 1.2 * v; n = 3.5 + .6 * v; break;
+      case 'H': t = .2; break;
+      case 'V': t = 1 + .8 * v; n = .3 * v; break;
+      case 'W': t = 2 + .5 * v; break;
     }
     if (h.last && h.last !== g.type) t += .4;
     return { t, n, v, k: g.kExit };
   }
   function place(run, g) {
     const e = effect(run, g);
-    run.hist.push({ head: Object.assign({}, run.head), thrill: run.thrill, nausea: run.nausea, kind: g.kind });
+    const two = g.i2 !== undefined, kOut = Math.max(g.kExit, .05);
+    run.hist.push({ head: Object.assign({}, run.head), thrill: run.thrill, nausea: run.nausea, kind: g.kind, cnt: two ? 2 : 1 });
     run.inv[g.kind]--; run.thrill += e.t; run.nausea += e.n;
-    run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut: Math.max(g.kExit, .05) });
-    if (g.stall) run.stall = { idx: run.track.length - 1, f: g.stallF, kind: g.kind };
-    run.head = { i: g.i, j: g.j, z: g.z1, dir: g.dout, k: Math.max(g.kExit, .05), turn: g.type === 'K' ? g.turn : 0, last: g.type }; run.placed++;
+    if (two) { // Zweifeld-Teil: zwei Einträge (half 0/1), Wirkung zählt einmal
+      const km = (run.head.k + kOut) / 2;
+      run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z0, din: g.din, dout: g.din, type: g.type, half: 0, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut: km });
+      run.track.push({ i: g.i2, j: g.j2, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, half: 1, v: e.v, t: 0, n: 0, kIn: km, kOut });
+    } else run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut });
+    if (g.stall) run.stall = { idx: run.track.length - (two ? 2 : 1), f: g.stallF, kind: g.kind };
+    run.head = { i: two ? g.i2 : g.i, j: two ? g.j2 : g.j, z: g.z1, dir: g.dout, k: kOut, turn: g.type === 'K' ? g.turn : 0, last: g.type }; run.placed++;
   }
   function undo(run) {
     const h = run.hist.pop(); if (!h) return false;
-    run.track.pop(); if (run.stall && run.stall.idx >= run.track.length) run.stall = null; run.head = h.head; run.thrill = h.thrill; run.nausea = h.nausea; run.inv[h.kind]++; run.placed--; return true;
+    for (let c = h.cnt || 1; c > 0; c--) run.track.pop(); if (run.stall && run.stall.idx >= run.track.length) run.stall = null; run.head = h.head; run.thrill = h.thrill; run.nausea = h.nausea; run.inv[h.kind]++; run.placed--; return true;
   }
   function ready(run) { const h = run.head; return h.i + DV[h.dir][0] === run.exit.i && h.j + DV[h.dir][1] === run.exit.j && h.dir === run.exit.dir && h.z === 0; }
   // Pflicht-Flaggen: jede Flaggen-Kachel muss von der gebauten Strecke befahren werden
@@ -134,7 +152,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
 
   // ---- Tipp: Suche ab beliebigem Spielstand ----
   const ZB = (function () { const r = mulberry32(12345), a = []; for (let i = 0; i < 100; i++) a.push(Math.floor(r() * 4294967296) >>> 0); return a; })();
-  function stateKey(r) { let h = 0; for (let i = 0; i < r.track.length; i++) { const p = r.track[i]; h ^= ZB[p.i * 10 + p.j]; } const v = r.inv; return r.head.i + ',' + r.head.j + ',' + r.head.z + ',' + r.head.dir + ',' + v.G + v.L + v.R + v.A + v.B + v.P + v.C + ',' + r.thrill.toFixed(1) + ',' + r.nausea.toFixed(1) + ',' + h; }
+  function stateKey(r) { let h = 0; for (let i = 0; i < r.track.length; i++) { const p = r.track[i]; h ^= ZB[p.i * 10 + p.j]; } const v = r.inv; return r.head.i + ',' + r.head.j + ',' + r.head.z + ',' + r.head.dir + ',' + v.G + v.L + v.R + v.A + v.B + v.P + v.C + v.H + v.V + v.W + ',' + r.thrill.toFixed(1) + ',' + r.nausea.toFixed(1) + ',' + h; }
   function solveFrom(run, budget, cap) {
     cap = cap || 3; const base = run.hist.length, seen = new Set(); let nodes = 0; const sols = [];
     (function go(r) {
@@ -285,7 +303,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   }
 
   // ---------- Strecke ----------
-  const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const CKR = .38, CKZ = .75, LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const LOOP = (function () {
     const N = 72, A = .35, g = [], w = []; let tot = 0;
     for (let k = 0; k < 1200; k++) { const sg = (k + .5) / 1200, v = A + (1 - A) * (1 - Math.cos(2 * Math.PI * sg)) / 2; g.push(v); tot += v; }
@@ -304,11 +322,12 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
       for (let k = 0; k <= 14; k++) { const a = a0 + d * k / 14; out.push([C0[0] + Math.cos(a) * .5, C0[1] + Math.sin(a) * .5, p.z0 + (p.z1 - p.z0) * k / 14]); }
     } else {
       const n = p.type === 'L' ? 72 : p.type === 'C' ? 24 : 10, perp = [-di[1], di[0]];
+      // Korkenzieher über zwei Felder: Drehung um die Längsachse (rot 0..2π), Mitte kreist mit Radius CKR um die Achse
+      if (p.type === 'C') { for (let k = 0; k <= n; k++) { const t = ((p.half || 0) + k / n) / 2, th = 2 * Math.PI * t - Math.sin(2 * Math.PI * t), lat = CKR * Math.sin(th), up = CKZ * (1 - Math.cos(th)); out.push([E[0] + di[0] * k / n + perp[0] * lat, E[1] + di[1] * k / n + perp[1] * lat, p.z0 + up, th, perp]); } return out; }
       for (let k = 0; k <= n; k++) {
         if (p.type === 'L') { const Lq = LOOP[k]; const lt = LDEL * smt(k / n); out.push([E[0] + di[0] * Lq[0] + di[1] * lt, E[1] + di[1] * Lq[0] + di[0] * lt, p.z0 + Lq[1], Lq[2], Lq[3], k / n]); continue; }
         const t = k / n; let along = t, up = 0, lat = 0;
         if (p.type === 'L') { const th = 2 * Math.PI * t; along = (th + 2.6 * Math.sin(th)) / (2 * Math.PI); up = 1.0 * (1 - Math.cos(th)); lat = .6 * Math.sin(th) * (1 - Math.cos(th)) / 2; }
-        else if (p.type === 'C') { lat = .15 * Math.sin(4 * Math.PI * t); up = .1 * (1 - Math.cos(4 * Math.PI * t)); }
         out.push([E[0] + di[0] * along + perp[0] * lat, E[1] + di[1] * along + perp[1] * lat, p.z0 + (p.z1 - p.z0) * t + up]);
       }
     }
@@ -316,7 +335,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   }
   function buildPath(run, ride) {
     const S = [], nT = run.track.length;
-    const addPiece = (p, pi, skipFirst, brk) => { const sm = pieceSamples(p); sm.forEach((q, k) => { if (k === 0 && skipFirst) return; const e = { x: q[0], y: q[1], z: q[2], pi, ty: p.type }; if (p.type === 'L') { e.phi = q[3]; e.lh = q[4]; e.ls = q[5]; e.ev = DV[p.din]; } if (k === 0 && brk) e.brk = true; S.push(e); }); };
+    const addPiece = (p, pi, skipFirst, brk) => { const sm = pieceSamples(p); sm.forEach((q, k) => { if (k === 0 && skipFirst) return; const e = { x: q[0], y: q[1], z: q[2], pi, ty: p.type }; if (p.type === 'L') { e.phi = q[3]; e.lh = q[4]; e.ls = q[5]; e.ev = DV[p.din]; } if (p.type === 'C') { e.rot = q[3]; e.cp = q[4]; } if (k === 0 && brk) e.brk = true; S.push(e); }); };
     run.track.forEach((p, pi) => addPiece(p, pi, pi > 0, false));
     const stationMid = Math.floor(pieceSamples(run.track[0]).length / 2);
     (run.ret || []).forEach((p, k) => {
@@ -352,7 +371,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     const { S, D } = path, last = S.length - 1; let lo = 0, f = 0;
     if (s <= 0) { lo = 0; } else if (s >= D[last]) { lo = last - 1; f = 1; } else { let hi = last; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= s) lo = m; else hi = m; } f = (s - D[lo]) / ((D[lo + 1] - D[lo]) || 1); }
     const a = S[lo], b = S[lo + 1];
-    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, pi: a.pi, ty: a.ty, k: lo, phi: a.phi === undefined ? undefined : a.phi + (b.phi - a.phi) * f, lh: a.lh === undefined ? undefined : a.lh + (b.lh - a.lh) * f, ev: a.ev, dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, pi: a.pi, ty: a.ty, k: lo, phi: a.phi === undefined ? undefined : a.phi + (b.phi - a.phi) * f, lh: a.lh === undefined ? undefined : a.lh + (b.lh - a.lh) * f, rot: a.rot === undefined ? undefined : a.rot + ((b.rot === undefined ? a.rot : b.rot) - a.rot) * f, cp: a.cp, ev: a.ev, dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
   }
 
   function makeDecor(seed, N, theme, reserved) {
@@ -498,6 +517,11 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     const rail = yy => { [.18, .34].forEach(h => { const r0 = P(gi - 1, gj + yy, h), r1 = P(gi + .5, gj + yy, h); pl(c, r0[0], r0[1], r1[0], r1[1], R.stone[3], 1); }); for (let k = 0; k <= 3; k++) { const pp = P(gi - 1 + k * .5, gj + yy, 0), pq = P(gi - 1 + k * .5, gj + yy, .36); pl(c, pp[0], pp[1], pq[0], pq[1], R.stone[2], 2); } };
     rail(.1); rail(.9);
   }
+  // Lamellen auf einem geraden Feld in Fahrtrichtung (Bremse gelb/schwarz, Booster orange/blau)
+  function drawFins(c, P, p, cols) {
+    const d = DV[p.din], z = p.z0 + .1;
+    for (let k = 0; k < 5; k++) { const a = .14 + k * .18; if (d[0]) box(c, P, p.i + (d[0] > 0 ? a : 1 - a - .08), p.j + .4, z, .08, .2, .09, cols[k % 2], null); else box(c, P, p.i + .4, p.j + (d[1] > 0 ? a : 1 - a - .08), z, .2, .08, .09, cols[k % 2], null); }
+  }
   function drawBrake(c, P, bi, bj) {
     for (let k = 0; k < 5; k++) { const x = bi + .14 + k * .18; box(c, P, x, bj + .3, .06, .08, .4, .1, k % 2 ? R.base[3] : R.yellow[3], null); }
   }
@@ -543,6 +567,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     if (S.gate) items.push({ d: S.gate[0] + S.gate[1] + .55 + .6, f: c => drawGate(c, P, S.gate[0], S.gate[1], tc) });
     }
     items.push({ d: run.exit.i + run.exit.j + .55, f: c => drawBrake(c, P, run.exit.i, run.exit.j) });
+    run.track.forEach(p => { if (p.type === 'H' || p.type === 'V') items.push({ d: p.i + p.j + 1.06 + p.z0 * .012, f: c => drawFins(c, P, p, p.type === 'H' ? [R.yellow[3], R.base[3]] : [R.orange[3], R.cyan[1]]) }); });
     let pn = [0, 1];
     for (let k = 0; k < Sm.length - 1; k++) {
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
@@ -556,8 +581,9 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
         }
         const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
         pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
-        if (k % 2 === 0) { const t0 = P(a.x - nx * .19, a.y - ny * .19, a.z), t1 = P(a.x + nx * .19, a.y + ny * .19, a.z); pl(c, t0[0], t0[1] + 2, t1[0], t1[1] + 2, R.stone[1], 1); pl(c, t0[0], t0[1] + 1, t1[0], t1[1] + 1, R.stone[3], 1); }
-        [-1, 1].forEach(sg => { const r0 = P(a.x + nx * .115 * sg, a.y + ny * .115 * sg, a.z), r1 = P(b.x + nx * .115 * sg, b.y + ny * .115 * sg, b.z); pl(c, r0[0], r0[1] + 2, r1[0], r1[1] + 2, tc[0], 1); pl(c, r0[0], r0[1] + 1, r1[0], r1[1] + 1, tc[1], 1); pl(c, r0[0], r0[1], r1[0], r1[1], tc[2], 1); pl(c, r0[0], r0[1] - 1, r1[0], r1[1] - 1, tc[3], 1); pl(c, r0[0], r0[1] - 2, r1[0], r1[1] - 2, tc[4], 1); });
+        const ca = a.rot === undefined ? 1 : Math.cos(a.rot), sa = a.rot === undefined ? 0 : Math.sin(a.rot), cb = b.rot === undefined ? ca : Math.cos(b.rot), sb = b.rot === undefined ? sa : Math.sin(b.rot);
+        if (k % 2 === 0) { const t0 = P(a.x - nx * .19 * ca, a.y - ny * .19 * ca, a.z - .38 * sa), t1 = P(a.x + nx * .19 * ca, a.y + ny * .19 * ca, a.z + .38 * sa); pl(c, t0[0], t0[1] + 2, t1[0], t1[1] + 2, R.stone[1], 1); pl(c, t0[0], t0[1] + 1, t1[0], t1[1] + 1, R.stone[3], 1); }
+        [-1, 1].forEach(sg => { const r0 = P(a.x + nx * .115 * sg * ca, a.y + ny * .115 * sg * ca, a.z + .23 * sg * sa), r1 = P(b.x + nx * .115 * sg * cb, b.y + ny * .115 * sg * cb, b.z + .23 * sg * sb); pl(c, r0[0], r0[1] + 2, r1[0], r1[1] + 2, tc[0], 1); pl(c, r0[0], r0[1] + 1, r1[0], r1[1] + 1, tc[1], 1); pl(c, r0[0], r0[1], r1[0], r1[1], tc[2], 1); pl(c, r0[0], r0[1] - 1, r1[0], r1[1] - 1, tc[3], 1); pl(c, r0[0], r0[1] - 2, r1[0], r1[1] - 2, tc[4], 1); });
       } });
     }
     return items;
@@ -592,9 +618,11 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {
       const q = posAt(S.ridePath, cs), cz = q.z + .08, cp = P(q.x, q.y, q.z); boxes.push([cp[0] - 40, cp[1] - 50, 80, 90]);
+      if (q.ty === 'W') dyn.push({ d: q.x + q.y + .9, f: c2 => { for (let k = 0; k < 14; k++) { const a = hsh(k, ci, Math.floor(t * 12)) * 6.28, r = 6 + hsh(k, ci + 7, Math.floor(t * 12)) * 12; rect(c2, cp[0] + Math.cos(a) * r, cp[1] - 4 - Math.abs(Math.sin(a)) * r * .9, 2, 2, k % 3 ? '#FFFFFF' : R.water[3]); } } });
       dyn.push({ d: q.x + q.y + .5 + q.z * .02, f: c2 => {
-        if (q.ty === 'L' && q.phi !== undefined) {
-          const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi), N = [-ev[0] * sn, -ev[1] * sn, cs], rv = [-ev[1], ev[0], 0], F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
+        if ((q.ty === 'L' && q.phi !== undefined) || (q.ty === 'C' && q.rot !== undefined)) {
+          let N, rv; if (q.ty === 'L') { const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi); N = [-ev[0] * sn, -ev[1] * sn, cs]; rv = [-ev[1], ev[0], 0]; } else { const sn = Math.sin(q.rot), cs = Math.cos(q.rot), cp = q.cp; N = [-cp[0] * sn, -cp[1] * sn, cs]; rv = [cp[0] * cs, cp[1] * cs, sn]; }
+          const F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
           const at = (h, sd) => [q.x + N[0] * h + rv[0] * (sd || 0), q.y + N[1] * h + rv[1] * (sd || 0), q.z + N[2] * h + rv[2] * (sd || 0)];
           const b0 = at(.14); obox(c2, P, b0[0], b0[1], b0[2], F, .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0], op);
           const b1 = at(.21); obox(c2, P, b1[0], b1[1], b1[2], F, .1, .115, .018, R.base[1], null, op);
@@ -615,13 +643,14 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     if (theme === 'winter') for (let k = 0; k < 60; k++) { const px = (hsh(k, 3, 9) * L.W + t * (7 + (k % 5))) % L.W, py = (hsh(k, 5, 7) * L.H + t * (16 + (k % 7) * 2)) % L.H; rect(c, px, py, 2, 2, '#FFFFFF'); }
     if (S.ghost) {
       const gh = S.ghost, z = (gh.z0 + gh.z1) / 2, i = gh.i, j = gh.j, ok = gh.valid;
-      dither(c, [P(i + .06, j + .06, z), P(i + .94, j + .06, z), P(i + .94, j + .94, z), P(i + .06, j + .94, z)], ok ? (gh.stall ? '#FF9A3C' : '#FFE27A') : '#E25046');
-      const sm = pieceSamples({ i, j, din: gh.din, dout: gh.dout, z0: gh.z0, z1: gh.z1, type: gh.type }), col = ok ? '#FFFFFF' : '#FFD2CE';
+      const tiles = gh.i2 !== undefined ? [[i, j, 0], [gh.i2, gh.j2, 1]] : [[i, j]];
+      tiles.forEach(tl => dither(c, [P(tl[0] + .06, tl[1] + .06, z), P(tl[0] + .94, tl[1] + .06, z), P(tl[0] + .94, tl[1] + .94, z), P(tl[0] + .06, tl[1] + .94, z)], ok ? (gh.stall ? '#FF9A3C' : '#FFE27A') : '#E25046'));
+      const sm = [].concat(...tiles.map(tl => pieceSamples({ i: tl[0], j: tl[1], din: gh.din, dout: gh.dout, z0: gh.z0, z1: gh.z1, type: gh.type, half: tl[2] }))), col = ok ? '#FFFFFF' : '#FFD2CE';
       for (let k = 0; k < sm.length - 1; k++) { const p = P(sm[k][0], sm[k][1], sm[k][2] + .05), q = P(sm[k + 1][0], sm[k + 1][1], sm[k + 1][2] + .05); pl(c, p[0], p[1], q[0], q[1], col, 3); }
       const gc = P(i + .5, j + .5, 0), gt = P(i + .5, j + .5, z); for (let y = gt[1]; y < gc[1]; y += 3) rect(c, gc[0], y, 1, 1, '#FFFFFF');
       const m = P(i + .5, j + .5, z);
       if (!ok) { pl(c, m[0] - 6, m[1] - 6, m[0] + 6, m[1] + 6, '#FFFFFF', 3); pl(c, m[0] + 6, m[1] - 6, m[0] - 6, m[1] + 6, '#FFFFFF', 3); }
-      else { const e = P(i + .5 + DV[gh.dout][0] * .3, j + .5 + DV[gh.dout][1] * .3, gh.z1 + .05); rect(c, e[0] - 2, e[1] - 2, 5, 5, '#FFFFFF'); }
+      else { const ei = gh.i2 !== undefined ? gh.i2 : i, ej = gh.i2 !== undefined ? gh.j2 : j, e = P(ei + .5 + DV[gh.dout][0] * .3, ej + .5 + DV[gh.dout][1] * .3, gh.z1 + .05); rect(c, e[0] - 2, e[1] - 2, 5, 5, '#FFFFFF'); }
       boxes.push([m[0] - 50, m[1] - 40, 100, 90]);
     }
     if (S.target && S.pulse && Math.sin(t * 7) > 0) { const e = S.target, pts = [P(e.i + .04, e.j + .04, 0), P(e.i + .96, e.j + .04, 0), P(e.i + .96, e.j + .96, 0), P(e.i + .04, e.j + .96, 0)]; for (let k = 0; k < 4; k++) { const p = pts[k], q = pts[(k + 1) % 4]; pl(c, p[0], p[1], q[0], q[1], '#FFFFFF', 2); } }
@@ -742,6 +771,10 @@ function pieceIcon(k,x,y){
   else if(k==='L')arc(-1);
   else if(k==='A'){straight();ui.line(x+6,y+8,x+10,y+4,'#FFFFFF');ui.line(x+10,y+4,x+14,y+8,'#FFFFFF');ui.line(x+6,y+14,x+10,y+10,'#FFFFFF');ui.line(x+10,y+10,x+14,y+14,'#FFFFFF')}
   else if(k==='B'){straight();ui.line(x+6,y+5,x+10,y+9,'#FFFFFF');ui.line(x+10,y+9,x+14,y+5,'#FFFFFF');ui.line(x+6,y+11,x+10,y+15,'#FFFFFF');ui.line(x+10,y+15,x+14,y+11,'#FFFFFF')}
+  else if(k==='H'){straight();for(let t=3;t<18;t+=3)ui.fr(x+7,y+t,6,2,t%2?'#F2C12E':'#2B2B2B')}
+  else if(k==='V'){straight();[4,10].forEach(t=>{ui.line(x+5,y+t+5,x+10,y+t,'#F5A04A');ui.line(x+10,y+t,x+15,y+t+5,'#F5A04A');ui.line(x+5,y+t+6,x+10,y+t+1,'#B5560F');ui.line(x+10,y+t+1,x+15,y+t+6,'#B5560F')})}
+  else if(k==='W'){ui.fr(x,y,20,20,'#2F7BC8');for(let j=0;j<20;j+=4)ui.fr(x+(j%8),y+j,6,1,'#7DBBEE');straight();[[3,5],[15,8],[4,13],[16,15],[2,9]].forEach(p=>ui.fr(x+p[0],y+p[1],2,2,'#FFFFFF'))}
+  else if(k==='C'){for(let j=0;j<20;j++){const a=j/19*Math.PI*2,o=Math.round(4*Math.sin(a)),f=Math.cos(a)>0;ui.fr(x+9+o,y+j,3,1,f?'#D8312B':'#7A1410');ui.fr(x+9-o,y+j,3,1,f?'#7A1410':'#F27A66')}ui.fr(x+16,y+2,3,1,'#FFFFFF');ui.fr(x+16,y+17,3,1,'#FFFFFF');ui.fr(x+17,y+3,1,14,'#FFFFFF')}
   else if(k==='P'){for(let a=0;a<48;a++){const t=a/48*Math.PI*2;const px_=Math.round(x+10+6*Math.cos(t)),py_=Math.round(y+8+6*Math.sin(t));tr(px_,py_)}for(let a=0;a<48;a++){const t=a/48*Math.PI*2;tr2(Math.round(x+10+6*Math.cos(t)),Math.round(y+8+6*Math.sin(t)))}ui.fr(x+8,y+14,4,6,'#D8312B')}
 }
 
@@ -814,11 +847,12 @@ function schwungWin(){
 let partialK=null,hintUsed=false,hintMsg='',hintT=0,hintK=null,hintKey='',hintSeq=null,hintMsgKey='';
 function buildWin(){
   const b=lay.bw;ui.win(b.x,b.y,b.w,b.h,'Bauen');
-  const ks=['G','L','R','A','B','P'],gx=b.x+5,gy=b.y+15;
-  ks.forEach((k,idx)=>{const cx=gx+(idx%3)*33,cy=gy+Math.floor(idx/3)*33,n=run.inv[k]||0;
+  // nur Teile, die das Level vorsieht (höchstens 8); ab 7 Teilen 4 Spalten
+  const ks=HB.ORDER.filter(k=>k in LEVEL.inv).slice(0,8),cols=ks.length>6?4:3,gx=b.x+5,gy=b.y+15;
+  ks.forEach((k,idx)=>{const cx=gx+(idx%cols)*33,cy=gy+Math.floor(idx/cols)*33,n=run.inv[k]||0;
     ui.btn('p'+k,cx,cy,30,30,{sel:sel===k&&!(hintK===k&&Math.sin(lastT*7)>0),dim:true,disabled:mode!=='build'||n===0,fn:()=>{sel=sel===k?null:k},draw:(x2,y2)=>{pieceIcon(k,x2+5,y2+4);T(x2+20,y2+19,String(n),n>0?'#FFFFFF':'#C9D3E2','#141B2A')}})});
   const gh=sel?HB.ghost(run,sel):null,canBuild=mode==='build'&&gh&&gh.valid;
-  ui.btn('build',b.x+5+99+4,gy,b.w-5-99-4-5,63,{disabled:!canBuild,fn:buildPiece,draw:(x2,y2,w,h,dis)=>{const cx=x2+Math.floor(w/2),ink=dis?C.dis:C.txt;ui.fr(cx-10,y2+12,20,20,C.lo);ui.fr(cx-9,y2+13,18,18,dis?C.btnP:'#5DAE34');ui.fr(cx-1,y2+16,3,12,ink);ui.fr(cx-6,y2+20,13,3,ink);ui.fr(cx,y2+17,1,10,dis?C.btnP:'#FFFFFF');ui.fr(cx-5,y2+21,11,1,dis?C.btnP:'#FFFFFF');T(cx-Math.floor(HBUI.textW('BAUEN')/2),y2+40,'BAUEN',ink)}});
+  ui.btn('build',b.x+5+cols*33+4,gy,b.w-5-cols*33-4-5,63,{disabled:!canBuild,fn:buildPiece,draw:(x2,y2,w,h,dis)=>{const cx=x2+Math.floor(w/2),ink=dis?C.dis:C.txt;ui.fr(cx-10,y2+12,20,20,C.lo);ui.fr(cx-9,y2+13,18,18,dis?C.btnP:'#5DAE34');ui.fr(cx-1,y2+16,3,12,ink);ui.fr(cx-6,y2+20,13,3,ink);ui.fr(cx,y2+17,1,10,dis?C.btnP:'#FFFFFF');ui.fr(cx-5,y2+21,11,1,dis?C.btnP:'#FFFFFF');T(cx-Math.floor(HBUI.textW('BAUEN')/2),y2+40,'BAUEN',ink)}});
   // Statuszeile
   const sy=gy+66;ui.inset(b.x+5,sy,b.w-10,23,C.inset);
   let l1='',l2='';
@@ -987,7 +1021,7 @@ function frame(now){
   if(overlay){ui.hits.length=0;if(overlay==='menu')menuWin();else if(overlay==='rand'||overlay==='busy'||overlay==='levels'){ctx.globalAlpha=.55;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);ctx.globalAlpha=1;if(overlay==='rand')randWin();else if(overlay==='busy')busyWin();else levelsWin()}else if(overlay==='help')helpWin();else if(overlay==='result'&&result)resultWin();else if(overlay==='stall')stallWin()}
 }
 Promise.all(Object.keys(STATIONS).map(k=>HBR.loadStation(STATIONS[k]))).then(()=>{stSpr=STATIONS;init();requestAnimationFrame(frame)});
-window.__hb={st:()=>({sel,mode,overlay,result,hintUsed,hintMsg,hintK,placed:run.placed,ready:HB.ready(run),ok:result&&result.j.success,stars:result&&result.st}),hit:id=>ui.hits.find(h=>h.id===id)||null,dbgLoop:(i,j,din)=>{run.track.push({i,j,z0:0,z1:0,din,dout:din,type:'L'});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='ride';sel=null;window.__frz=1;const li=run.track.length-1,ks=ridePath.S.map((e,k)=>e.pi===li?k:-1).filter(k=>k>=0);window.__lk=ks;return ks.length},dbgAt:f=>{const ks=window.__lk,k=ks[Math.round(f*(ks.length-1))];rideS=ridePath.D[k];cars=[rideS,rideS-.38,rideS-.76];partial=partial||{t:0,n:0};partialK=run.head.k;overlay=null},hits:()=>ui.hits.map(h=>({id:h.id,x:h.x,y:h.y,w:h.w,h:h.h})),get:()=>({run,sel,mode,overlay,result,lay,L,rideS,swing,stallS}),press:(k)=>{sel=k},build:buildPiece,go:startRide,close:()=>{overlay=null},lvl:i=>loadLevel(i),place:(seq)=>{seq.split('').forEach(k=>{const g=HB.ghost(run,k);if(g.valid){HB.place(run,g)}});path=HBR.buildPath(run,false)}};
+window.__hb={st:()=>({sel,mode,overlay,result,hintUsed,hintMsg,hintK,placed:run.placed,ready:HB.ready(run),ok:result&&result.j.success,stars:result&&result.st}),hit:id=>ui.hits.find(h=>h.id===id)||null,dbgLoop:(i,j,din)=>{run.track.push({i,j,z0:0,z1:0,din,dout:din,type:'L'});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='ride';sel=null;window.__frz=1;const li=run.track.length-1,ks=ridePath.S.map((e,k)=>e.pi===li?k:-1).filter(k=>k>=0);window.__lk=ks;return ks.length},dbgAt:f=>{const ks=window.__lk,k=ks[Math.round(f*(ks.length-1))];rideS=ridePath.D[k];cars=[rideS,rideS-.38,rideS-.76];partial=partial||{t:0,n:0};partialK=run.head.k;overlay=null},hits:()=>ui.hits.map(h=>({id:h.id,x:h.x,y:h.y,w:h.w,h:h.h})),get:()=>({run,sel,mode,overlay,result,lay,L,rideS,swing,stallS,rideTy:ridePath&&cars?HBR.posAt(ridePath,rideS).ty:null}),press:(k)=>{sel=k},build:buildPiece,go:startRide,close:()=>{overlay=null},lvl:i=>loadLevel(i),place:(seq)=>{seq.split('').forEach(k=>{const g=HB.ghost(run,k);if(g.valid){HB.place(run,g)}});path=HBR.buildPath(run,false)}};
 })();
 </script>
 </body>

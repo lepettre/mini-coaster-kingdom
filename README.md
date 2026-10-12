@@ -5,7 +5,7 @@ Isometrisches Pixel-Art-Freizeitpark-Puzzle, iPhone-Hochformat, 24 Level in 4 Ka
 ## Ordner
 | Pfad | Inhalt |
 |---|---|
-| `hb4/logic.js` | Regeln, Physik (Looping braucht Schwung 2,6), Löser `solve`, Tipp-Löser `solveFrom`/`hint`, Hängenbleiben |
+| `hb4/logic.js` | Regeln, Teile (inkl. Bremse, Booster, Splash, Korkenzieher), Physik (Looping braucht Schwung 2,6), Löser `solve`, Tipp-Löser `solveFrom`/`hint`, Hängenbleiben |
 | `hb4/render.js` | Zeichnen, Looping, Wagen, Paletten |
 | `hb4/ui.js`, `hb4/template.html` | Oberfläche, Menü, Level, Tipp-Knopf, Zufall; `template.html` ist das HTML-Gerüst mit Platzhaltern |
 | `hb4/genb.js` | Zufallsgenerator im Browser |
@@ -14,6 +14,7 @@ Isometrisches Pixel-Art-Freizeitpark-Puzzle, iPhone-Hochformat, 24 Level in 4 Ka
 | `hb4/station_*.json` | fertige Sprites der 4 Landschaften |
 | `hb4/build.py` | setzt alles zu `index.html` zusammen |
 | `hb4/test*.js`, `stalltest.js`, `phystest.js` | Tests (Browser per Puppeteer; `phystest.js` reines Node) |
+| `hb4/teiletest.js`, `teile_test.json` | Testlevel und Browser-Test der neuen Teile (`python3 build.py teile`) |
 | `hb4/varianz.js`, `varianz_test.json`, `vtest.js` | Varianz-Testvarianten, Vorschau mit `python3 build.py varianz` |
 | `hb5/` | Sprite-Generatoren (unvollständig, siehe CLAUDE.md) |
 | `icons/` | Icon-Skript und Original-PNG |

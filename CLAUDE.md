@@ -15,12 +15,13 @@ Isometrisches Freizeitpark-Puzzle: Strecke aus Bauteilen legen, Gäste fahren la
 Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue Physik, rote Oberfläche, Pflicht-Flaggen in der Logik). Die veröffentlichte Fassung entspricht Commit 217c641.
 - **Physik:** Zug am Lifthill-Gipfel langsam (`D.k0` 1,0 statt 1,7). Er kommt nie über die Lifthill-Höhe; ein Anstieg geht nur mit Schwung aus einer Abfahrt und bremst. Folge: Level 1-2 hat ein Teichfeld weniger, 3-6 Par 15, 12 Pool-Rätsel ersetzt. Fahrtanimation: Tempo folgt dem Schwung stufenlos.
 - **Oberfläche:** dunkles, mattes Rot (`C` in `ui.js`); Text auf Fenstern hell (`C.txt`), `C.ink` nur für Rahmen und Text auf Gelb.
+- **Neue Teile (gebaut 2026-10-12):** Bremse `H` (Schwung höchstens 1,2), Booster `V` (+1,5, max. 4), Splash `W` (nur auf Teichfeld am Boden, −1,2), Korkenzieher `C` über zwei Felder (braucht 2,0, kostet 0,4; zwei Track-Einträge `half` 0/1, Wirkung zählt einmal). Werte in `D`/`FRIC`/`effect` in `logic.js`. Baufenster zeigt nur Teile aus `level.inv` (max. 8, ab 7 vier Spalten). Noch in keinem festen Level genutzt.
 - **Pflicht-Flaggen:** Level-Feld `flags:[[i,j],…]`; `judge` verlangt jede Flagge (`flagsHit`), Render zeigt rot-weißen Wimpel (grün, wenn befahren), Statuszeile zählt mit. Noch in keinem festen Level genutzt.
 
 ## Befehle
 - Einmalig: `npm install`
 - Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
-- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus). Screenshots landen in `hb4/out/`.
+- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`). Screenshots landen in `hb4/out/`.
 - Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `vorschau.html` im Projektordner (V1–V3 spielbar, wird mit committet); `node vtest.js` spielt sie durch.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
@@ -34,9 +35,9 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 ## Geplant, noch NICHT gebaut (nur auf Auftrag)
 Varianz-Paket: bisher nutzen alle 24 Level denselben Grundriss, Pflicht-Flaggen fehlen. Level 1-1 bis 1-3 bleiben unverändert, Level ab 1-4 würden fest in `levels24.json` stehen. Gewünschter Weg: fester Baukasten statt teurem Zufallswalk (Hindernis-Schablonen L, Zeile, Zickzack, Doppelteich; feste Flaggenplätze je Grundriss; Strecke bestehender Level als bekannte Lösung wiederverwenden; ein einziger Solver-Lauf prüft die Lösungszahl). Nur für neue Grundrisse P3 (lange Rückstrecke) und P4 (9×9) ein Walk mit kleinem Budget. Zufallsmodus (`genb.js`, `pool.json`) bleibt unverändert.
 Phase 1 erledigt (2026-10-12): drei Testvarianten in `varianz_test.json` (V1 P3 + L-Hindernis, V2 P4 9×9 + Flagge + Zickzack, V3 P1 + zwei Flaggen + Doppelteich), alle mit 3 Sternen gespielt, ohne Flagge 0 Sterne. **Wartet auf Jans Freigabe**, erst dann Phase 2 (Level ab 1-4 neu in `levels24.json`).
-Neue Teile (2026-10-12, Jan): Bremse, Booster, Korkenzieher über ZWEI Felder sind gewünscht; Kamelbuckel gestrichen (geht mit Anstieg+Abfahrt). Viertes Teil: Vorschlag Splash/Wasserdurchfahrt, wartet auf Freigabe. Reihenfolge: Vorschlag zeigen → neue Teile bauen → Varianz Phase 2.
-Nur besprochen, nicht beschlossen: Kreuzungen, Korkenzieher C (in `logic.js` unter KINDS definiert, aber nicht in ORDER und nicht im Generator), Steilabfahrt, Turbo-Lift, Tunnel. Vorgeschlagene Reihenfolge: 9×9 → Korkenzieher → Kreuzungen.
-Weitere offene Punkte: Tagesrätsel; Senioren als Gäste sind mit festem Aufbau nicht lösbar.
+Neue Teile sind gebaut (Kamelbuckel gestrichen). Nächster Schritt: Varianz Phase 2 – neue Teile schrittweise einführen (Vorschlag: Bremse+Booster ab Kapitel 2, Korkenzieher ab 3, Splash ab 4).
+Nur besprochen, nicht beschlossen: Kreuzungen, Steilabfahrt, Tunnel.
+Weitere offene Punkte: Tagesrätsel; Senioren als Gäste (mit der Bremse jetzt vermutlich lösbar, nicht geprüft); Ziel-Fahne evtl. durch Ziel-Schild ersetzen (Verwechslung mit Pflicht-Flaggen).
 
 ## Veröffentlichen
 Die Datei `index.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
