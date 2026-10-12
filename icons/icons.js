@@ -1,4 +1,4 @@
-const {createCanvas}=require('/home/claude/node_modules/@napi-rs/canvas');const fs=require('fs');
+const {createCanvas}=require('@napi-rs/canvas');const fs=require('fs');
 const N=60;
 function mk(){const cv=createCanvas(N,N),c=cv.getContext('2d');c.imageSmoothingEnabled=false;
  const px=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(Math.round(x),Math.round(y),w,h)};
@@ -43,6 +43,6 @@ const icons={};
  const top=pts.reduce((a,b)=>b[1]<a[1]?b:a);crown(o,top[0]-5,top[1]-10);car(o,12,45);o.px(11,46,1,1,'#1B4A9A');icons.D=o.cv}
 const sizes=[180,120,60],W=30+sizes.reduce((x,y)=>x+y+24,0),H=250;const out=createCanvas(W,H),q=out.getContext('2d');q.imageSmoothingEnabled=false;q.fillStyle='#CFE6F7';q.fillRect(0,0,W,H);
 let x=24;sizes.forEach(S=>{const y=20,r=Math.round(S*.22);q.save();q.beginPath();q.moveTo(x+r,y);q.arcTo(x+S,y,x+S,y+S,r);q.arcTo(x+S,y+S,x,y+S,r);q.arcTo(x,y+S,x,y,r);q.arcTo(x,y,x+S,y,r);q.closePath();q.clip();q.drawImage(icons.C,x,y,S,S);q.restore();q.fillStyle='#10213A';q.font='bold 15px sans-serif';q.fillText(S+' px',x,y+S+22);x+=S+24});
-fs.writeFileSync('/mnt/user-data/outputs/icon_C_final.png',out.toBuffer('image/png'));
+fs.writeFileSync('icon_C_final.png',out.toBuffer('image/png'));
 for(const n of [180,512]){const o=createCanvas(n,n),q2=o.getContext('2d');q2.imageSmoothingEnabled=false;q2.drawImage(icons.C,0,0,n,n);fs.writeFileSync('iconC_'+n+'.png',o.toBuffer('image/png'))}
 console.log('ok');

@@ -1,52 +1,38 @@
-# Mini Coaster Kingdom – Übergabe an Claude Code
+# Mini Coaster Kingdom (früher „Hängebahn")
 
-Puzzle-Spiel im Stil von RollerCoaster Tycoon (früher „Hängebahn“). Eine HTML-Datei, gebaut aus hb4/.
-Bisher entwickelt in einem claude.ai-Projekt. Veröffentlichte Fassung: https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts
-Ausführlicher Stand, Aufbau und Build-Befehle: siehe 01_README.md.
+Puzzle im Stil von RollerCoaster Tycoon: Strecke aus Bauteilen legen, Gäste fahren lassen. 24 feste Level in 4 Kapiteln plus Zufallsmodus. Wird aus `hb4/` zu EINER HTML-Datei gebaut. Besitzer: Jan. Details: README.md.
 
-## Erste Aufgabe (einmalig)
-1. Die Bündeldateien (*.txt) anhand der Zeilen „===== FILE: pfad =====“ … „===== END =====“ entpacken.
-   Das Python-Snippet steht in 01_README.md. Ergebnis: hb4/, hb5/, icons/.
-2. Fehlende Sprites (station_*.json) nach README neu erzeugen und die Tests laufen lassen.
-3. Committen. Sonst nichts ändern.
+## Arbeitsregeln (immer einhalten)
+- Deutsch, kurz.
+- Erst Vorschlag zeigen, nach ausdrücklichem Auftrag bauen. Auf Fragen wie „wie lässt sich das verbessern?" nur Vorschläge machen, nichts umbauen.
+- Keine ungefragten Rückfragen der Art „X oder Y?".
+- Nichts erfinden; Annahmen als offene Frage kennzeichnen.
+- Token sparen; Fehler per Testskript finden, nicht per Screenshot-Orgie.
+- Nach jeder Phase: Ergebnis plus Testliste (5 Punkte).
 
-## Arbeitsregeln (Jan)
-- Deutsch und kurz antworten.
-- Erst einen Vorschlag zeigen, dann bauen – nur nach ausdrücklichem Auftrag (z. B. „Varianz go“).
-  Auf Fragen wie „wie lässt sich das verbessern?“ nur Vorschläge machen.
-- Keine ungefragten Rückfragen der Art „Willst du X oder Y?“.
-- Token sparen: gezielt lesen, Aufgaben bündeln, nichts unnötig neu erzeugen.
-- Nichts erfinden: Annahmen als offene Frage kennzeichnen.
-- Fehler per Testskript finden. Nach jeder Phase eine kurze Testliste mit 5 Punkten.
+## Stand
+Quellstand = veröffentlichte Version (Tipp-Knopf, `window.__hb`-Testhook, Hinweistext-Fix enthalten). `python3 build.py` erzeugt byte-identisch die veröffentlichte Datei (geprüft am 2026-10-12).
 
-## Stand am 2026-10-12: Varianz-Paket (geplant, NICHTS gebaut)
-Ziel: Die Level 1-4 bis Ende abwechslungsreicher machen. Level 1-1 bis 1-3 bleiben unverändert.
-- **Grundrisse:** layouts.js anbinden. P3 = lange Südrückfahrt (8×8), P4 = 9×9, P2 = Nordost als Zwischenvariante. P5 (7×7) entfällt.
-  Station und Rückstrecke sind bisher in allen Leveln gleich.
-- **Pflicht-Flaggen:** neues Level-Feld flags:[[i,j],…]. Die Strecke muss jede Flagge befahren (Prüfung in judge, logic.js), dazu ein Fahnen-Sprite im Render.
-  Ab Kapitel 2 eine Flagge, ab Kapitel 3 zwei, ab Kapitel 4 bis zu drei. Keine Flagge auf späteren Kreuzungszellen.
-- **Hindernisse:** Schablonen statt nur eines Teich-Klecks – L-Form, Zeile, Zickzack, Doppelteich.
-- **Gewünschter Weg, ein fester Baukasten:**
-  - Die bekannte Lösungsstrecke bestehender Level wiederverwenden.
-  - Flaggen auf diese Strecke setzen, Schablonen daneben.
-  - Ein einziger Solver-Lauf prüft die Lösungszahl.
-  - Den teuren Walk nur für die neuen Grundrisse P3 und P4 einsetzen.
-  - Ergebnis fest in levels24.json. Den Zufallsmodus (genb.js, pool.json) nicht anfassen.
-- **Zuerst nur 2–3 Testvarianten zur Durchsicht** (mit Solver-Check und Textansicht des Bretts):
-  1. P3 mit L-Hindernis
-  2. P4 (9×9) mit einer Flagge
-  3. Bisheriger Grundriss mit zwei Flaggen und Doppelteich
+## Befehle
+- Einmalig: `npm install`
+- Bauen: `cd hb4 && python3 build.py` → `hb4/dist/haengebahn.html`
+- Tests (nach dem Bauen, in `hb4/`): `node test3.js` (6 Level per Tipp-Taps durchspielen), `node stalltest.js` (Looping ohne Schwung). Beide laufen. Screenshots landen in `hb4/out/`.
+- Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
-  Erst nach Jans Freigabe die restlichen Level erzeugen.
+## Bekannte Lücken
+- `hb5/parts.js` fehlt (wird von `hb5/stations.js` gebraucht). Sprites daher nicht neu erzeugbar; fertige `hb4/station_*.json` genügen zum Bauen. Stationen ändern = JSON direkt bearbeiten oder parts.js neu schreiben.
+- `levels.json` fehlt; nur `test1.js` und `gen3.js` (alt) brauchen sie.
+- `test1.js`, `test2.js`, `themes.js`, `loopsheet.js`, `loopfour.js` nach der Pfad-Umstellung nicht neu geprüft.
+- `hb4/icon-512.png` gibt es nicht mehr; `build.py` bettet nur das 180er-Icon ein (wie in der veröffentlichten Version).
 
-## Nur theoretisch besprochen (nicht beschlossen)
-- **Größere Karten:** Bis 9×9 unproblematisch. Darüber wird der Solver teuer, und die Felder werden am iPhone zu klein.
-- **Kreuzungen:** Eine Gerade über oder unter einer queren Geraden, mit Höhenunterschied ≥ 2.
-  Nötig wären Änderungen an occupied(), am Solver-Schlüssel (z/Richtung), an der Zeichenreihenfolge und den Stützen im Render sowie an maxSol.
-- **Korkenzieher C:** In logic.js unter KINDS schon definiert, aber nicht in ORDER und nicht im Generator. Das ist die günstigste neue Bauteil-Erweiterung.
-- **Weitere Bauteil-Ideen:** Steilabfahrt (z−2), Turbo-Lift (Schwung zugeben), Tunnel.
-- **Vorgeschlagene Reihenfolge:** 9×9 → Korkenzieher → Kreuzungen.
+## Geplant, noch NICHT gebaut (nur auf Auftrag)
+Varianz-Paket: bisher nutzen alle 24 Level denselben Grundriss, Pflicht-Flaggen fehlen. Level 1-1 bis 1-3 bleiben unverändert, Level ab 1-4 würden fest in `levels24.json` stehen. Gewünschter Weg: fester Baukasten statt teurem Zufallswalk (Hindernis-Schablonen L, Zeile, Zickzack, Doppelteich; feste Flaggenplätze je Grundriss; Strecke bestehender Level als bekannte Lösung wiederverwenden; ein einziger Solver-Lauf prüft die Lösungszahl). Nur für neue Grundrisse P3 (lange Rückstrecke) und P4 (9×9) ein Walk mit kleinem Budget. Zufallsmodus (`genb.js`, `pool.json`) bleibt unverändert.
+Vor der vollen Umsetzung zuerst 2–3 Testvarianten zur Durchsicht: (1) P3 mit L-Hindernis, (2) P4 9×9 mit einer Flagge, (3) bisheriger Grundriss mit zwei Flaggen und Doppelteich; jeweils Solver-Lösbarkeitsprüfung und Textansicht des Bretts.
+Nur besprochen, nicht beschlossen: Kreuzungen, Korkenzieher C (in `logic.js` unter KINDS definiert, aber nicht in ORDER und nicht im Generator), Steilabfahrt, Turbo-Lift, Tunnel. Vorgeschlagene Reihenfolge: 9×9 → Korkenzieher → Kreuzungen.
+Weitere offene Punkte: Tagesrätsel; vollständiger Durchspieltest aller 24 Level (bisher 6); Senioren als Gäste sind mit festem Aufbau nicht lösbar.
 
 ## Veröffentlichen
-Das claude.ai-Artefakt kann nur in claude.ai aktualisiert werden: dort die gebaute haengebahn.html hochladen.
-Alternativ über GitHub Pages hosten.
+Die Datei `hb4/dist/haengebahn.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
+
+## Looping-Entscheidungen (nicht rückgängig machen)
+Tropfenform, seitlicher Versatz 0,35, Folgeteil führt Spur zurück, Physik: Looping braucht Schwung 2,6; ohne Schwung rollt der Zug zurück, Fehlermeldung, Strecke weg. Stilwahl je Landschaft: Wiese Chalet (B1), Winter Märchenburg (A2), Wüste Westernstadt (D1), Küste Villa (C1). Icon C (Abendburg, Looping ohne Wagen, durchgehende Strecke).

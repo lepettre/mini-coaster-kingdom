@@ -6,7 +6,7 @@ const solSeq=l=>{const r=HB.solve(l,400,300000);const c=r.sols.filter(s=>s.cente
  const errs=[];const res=[];
  for(const i of [3,8,14,19,22,23]){
   const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:1});page.on('pageerror',e=>errs.push(e.message));
-  await page.goto('file:///mnt/user-data/outputs/haengebahn.html');await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
+  await page.goto('file://'+require('path').resolve('dist/haengebahn.html'));await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
   await ev(i=>{window.__hb.lvl(i);window.__hb.close()},i);await sleep(400);
   const s=solSeq(LV[i]);await ev(q=>window.__hb.place(q),s.seq);
   await ev(()=>window.__hb.go());let ok=false;for(let k=0;k<200;k++){await sleep(300);if(await ev(()=>window.__hb.get().overlay)==='result'){ok=true;break}}

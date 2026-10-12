@@ -1,0 +1,418 @@
+(function (root) {
+  'use strict';
+  const TW = 64, TH = 32, ZH = 16, DV = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  const R = {
+    sky: ['#5BA4E6', '#6FB5EE', '#8CC6F4', '#A9D6F8', '#C8E6FB', '#E4F3FD'],
+    grass: ['#2C6B1E', '#3B8528', '#4C9C32', '#5FB23E', '#7BC853', '#9BDC6E'],
+    sand: ['#B88A4A', '#CFA05A', '#E0B66F', '#EDCB8A', '#F5DDA6'],
+    snow: ['#9DB4CF', '#BFD2E6', '#DCE8F3', '#F0F6FB', '#FFFFFF'],
+    stone: ['#3C3F48', '#5A5F6B', '#7C8290', '#A0A6B2', '#C4C9D2', '#E3E6EB'],
+    wood: ['#3E2616', '#5C3A20', '#7E5230', '#A06B3D', '#C08A55'],
+    red: ['#5A0E0E', '#8E1B16', '#C22A22', '#E04A3C', '#F27A66'],
+    blue: ['#0F2A5E', '#1B4A9A', '#2F6FD6', '#5B95EA', '#93BDF5'],
+    green: ['#0F4A2A', '#1B7440', '#2E9E5B', '#5CC283', '#96DDAE'],
+    orange: ['#7A3A08', '#B5560F', '#E07A1F', '#F5A04A', '#FFC585'],
+    yellow: ['#8A6A00', '#C99A1E', '#F2C12E', '#FFD84F', '#FFEC9A'],
+    pine: ['#10331F', '#1A4D2E', '#256B3C', '#378A4D'],
+    water: ['#1F5FA8', '#2F7BC8', '#4A97DD', '#7DBBEE', '#B5DBF7'],
+    skin: ['#C98E64', '#E0AA80', '#F0C49A', '#FADBB8'],
+    pink: ['#C25A78', '#FF8FA3', '#FFC1CF'], purple: ['#5B3392', '#8B5CC4', '#B58CF0'], cyan: ['#2F8FB5', '#4CC3F0', '#9BE0FA'], lime: ['#6E9A20', '#9BCB3C', '#C5E67A'],
+    base: ['#0B0F18', '#1B2030', '#FFFFFF', '#2B2B2B']
+  };
+  R.cgrass = ['#4D5F23', '#6B7C2C', '#8A9A36', '#A9B94B', '#C6D06A', '#DDE48C'];
+  const R0 = { grass: R.grass };
+  const PAL = [].concat(...Object.values(R));
+  const PRGB = PAL.map(h => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; });
+  let LUT = null;
+  function lut() {
+    if (LUT) return LUT; LUT = new Uint8Array(32768);
+    for (let k = 0; k < 32768; k++) {
+      const r = ((k >> 10) & 31) * 8 + 4, g = ((k >> 5) & 31) * 8 + 4, b = (k & 31) * 8 + 4; let best = 0, bd = 1e9;
+      for (let p = 0; p < PRGB.length; p++) { const c = PRGB[p], d = (r - c[0]) * (r - c[0]) * .9 + (g - c[1]) * (g - c[1]) * 1.4 + (b - c[2]) * (b - c[2]) * .7; if (d < bd) { bd = d; best = p; } }
+      LUT[k] = best;
+    } return LUT;
+  }
+  function quantize(ctx, w, h, x0, y0) {
+    x0 = x0 || 0; y0 = y0 || 0;
+    const T = lut(), im = ctx.getImageData(x0, y0, w, h), d = im.data;
+    for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) { d[i + 3] = 0; continue; } const p = PRGB[T[((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3)]]; d[i] = p[0]; d[i + 1] = p[1]; d[i + 2] = p[2]; d[i + 3] = 255; }
+    ctx.putImageData(im, x0, y0);
+  }
+  function layout(N, ZMAX) { const gw = N * TW + 48, gh = N * TH + ZMAX * ZH + 96; return { N, ZMAX, gw, gh, W: gw, H: gh, OX: N * TW / 2 + 24, OY: ZMAX * ZH + 60 }; }
+  const proj = L => (x, y, z) => [Math.round(L.OX + (x - y) * TW / 2), Math.round(L.OY + (x + y) * TH / 2 - z * ZH)];
+  function hsh(a, b, c) { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  const MK = (w, h) => (root.HBR_MK || ((ww, hh) => { const e = document.createElement('canvas'); e.width = ww; e.height = hh; return e; }))(w, h);
+
+  // ---------- Grundformen ----------
+  function pl(c, x0, y0, x1, y1, col, th) {
+    c.fillStyle = col; x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1); th = th || 1;
+    const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, shallow = dx >= -dy; let err = dx + dy, g = 0;
+    for (;;) { if (shallow) c.fillRect(x0, y0, 1, th); else c.fillRect(x0, y0, th, 1); if ((x0 === x1 && y0 === y1) || g++ > 600) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
+  }
+  const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+  const disc = (c, x, y, r, col) => { c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); };
+  const poly = (c, pts, fill, stroke) => { c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); if (fill) { c.fillStyle = fill; c.fill(); } if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1; c.stroke(); } };
+  function shade(hex, f) { const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; if (f >= 1) { r += (255 - r) * (f - 1); g += (255 - g) * (f - 1); b += (255 - b) * (f - 1); } else { r *= f; g *= f; b *= f; } return 'rgb(' + Math.round(r) + ',' + Math.round(g) + ',' + Math.round(b) + ')'; }
+  function box(c, P, x0, y0, z0, dx, dy, dz, col, out) {
+    const f = (pts, cc) => poly(c, pts, cc, out);
+    f([P(x0, y0 + dy, z0 + dz), P(x0 + dx, y0 + dy, z0 + dz), P(x0 + dx, y0 + dy, z0), P(x0, y0 + dy, z0)], shade(col, .86));
+    f([P(x0 + dx, y0, z0 + dz), P(x0 + dx, y0 + dy, z0 + dz), P(x0 + dx, y0 + dy, z0), P(x0 + dx, y0, z0)], shade(col, .64));
+    f([P(x0, y0, z0 + dz), P(x0 + dx, y0, z0 + dz), P(x0 + dx, y0 + dy, z0 + dz), P(x0, y0 + dy, z0 + dz)], shade(col, 1.14));
+  }
+  function obox(c, P, cx, cy, cz, f, lf, lr, lu, col, out, op) {
+    const hl = Math.hypot(f[0], f[1]); let r = hl > 1e-3 ? [-f[1] / hl, f[0] / hl, 0] : [1, 0, 0]; if (op) r = op.r;
+    const fl = Math.hypot(f[0], f[1], f[2]); const F = [f[0] / fl, f[1] / fl, f[2] / fl];
+    const U = op ? [-op.up[0], -op.up[1], -op.up[2]] : [r[1] * F[2] - r[2] * F[1], r[2] * F[0] - r[0] * F[2], r[0] * F[1] - r[1] * F[0]];
+    const pt = (a, b, d) => P(cx + F[0] * a * lf + r[0] * b * lr + U[0] * d * lu, cy + F[1] * a * lf + r[1] * b * lr + U[1] * d * lu, cz + F[2] * a * lf + r[2] * b * lr + U[2] * d * lu);
+    const faces = [[[0, 0, 1], [[-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]], [[1, 0, 0], [[1, -1, 1], [1, 1, 1], [1, 1, -1], [1, -1, -1]]], [[-1, 0, 0], [[-1, -1, 1], [-1, 1, 1], [-1, 1, -1], [-1, -1, -1]]], [[0, 1, 0], [[-1, 1, 1], [1, 1, 1], [1, 1, -1], [-1, 1, -1]]], [[0, -1, 0], [[-1, -1, 1], [1, -1, 1], [1, -1, -1], [-1, -1, -1]]]];
+    const V = [1, 1, 1.2];
+    faces.forEach(fc => { const n = fc[0]; const nw = [F[0] * n[0] + r[0] * n[1] + U[0] * n[2], F[1] * n[0] + r[1] * n[1] + U[1] * n[2], F[2] * n[0] + r[2] * n[1] + U[2] * n[2]]; if (nw[0] * V[0] + nw[1] * V[1] + nw[2] * V[2] <= 0) return; const lam = Math.max(0, -.45 * nw[0] + .55 * nw[1] + .75 * nw[2]); poly(c, fc[1].map(q => pt(q[0], q[1], q[2])), shade(col, .62 + .55 * lam), out); });
+  }
+  function dither(c, pts, col) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; pts.forEach(p => { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    c.save(); c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.clip(); c.fillStyle = col;
+    for (let y = Math.floor(y0); y <= y1; y++) for (let x = Math.floor(x0) + (y & 1); x <= x1; x += 2) c.fillRect(x, y, 1, 1);
+    c.restore();
+  }
+
+  // ---------- Strecke ----------
+  const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const LOOP = (function () {
+    const N = 72, A = .35, g = [], w = []; let tot = 0;
+    for (let k = 0; k < 1200; k++) { const sg = (k + .5) / 1200, v = A + (1 - A) * (1 - Math.cos(2 * Math.PI * sg)) / 2; g.push(v); tot += v; }
+    let phi = 0, x = 0, z = 0; const raw = [[0, 0, 0]], at = [0];
+    for (let k = 0; k < 1200; k++) { const dp = g[k] / tot * 2 * Math.PI, pm = phi + dp / 2; x += Math.cos(pm) / 1200; z += Math.sin(pm) / 1200; phi += dp; raw.push([x, z, phi]); }
+    const xt = raw[1200][0]; let zm = 0; raw.forEach(r => { zm = Math.max(zm, r[1]); });
+    const ZS = 2.4 / (zm / xt), out = [];
+    for (let k = 0; k <= N; k++) { const r = raw[Math.round(k / N * 1200)]; out.push([r[0] / xt, r[1] / xt * ZS, r[2], r[1] / zm]); }
+    return out;
+  })();
+  function pieceSamples(p) {
+    const c = [p.i + .5, p.j + .5], di = DV[p.din], dof = DV[p.dout], E = [c[0] - di[0] * .5, c[1] - di[1] * .5], out = [];
+    if (p.din !== p.dout) {
+      const C0 = [E[0] + dof[0] * .5, E[1] + dof[1] * .5], a0 = Math.atan2(-dof[1], -dof[0]), a1 = Math.atan2(di[1], di[0]);
+      let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      for (let k = 0; k <= 14; k++) { const a = a0 + d * k / 14; out.push([C0[0] + Math.cos(a) * .5, C0[1] + Math.sin(a) * .5, p.z0 + (p.z1 - p.z0) * k / 14]); }
+    } else {
+      const n = p.type === 'L' ? 72 : p.type === 'C' ? 24 : 10, perp = [-di[1], di[0]];
+      for (let k = 0; k <= n; k++) {
+        if (p.type === 'L') { const Lq = LOOP[k]; const lt = LDEL * smt(k / n); out.push([E[0] + di[0] * Lq[0] + di[1] * lt, E[1] + di[1] * Lq[0] + di[0] * lt, p.z0 + Lq[1], Lq[2], Lq[3], k / n]); continue; }
+        const t = k / n; let along = t, up = 0, lat = 0;
+        if (p.type === 'L') { const th = 2 * Math.PI * t; along = (th + 2.6 * Math.sin(th)) / (2 * Math.PI); up = 1.0 * (1 - Math.cos(th)); lat = .6 * Math.sin(th) * (1 - Math.cos(th)) / 2; }
+        else if (p.type === 'C') { lat = .15 * Math.sin(4 * Math.PI * t); up = .1 * (1 - Math.cos(4 * Math.PI * t)); }
+        out.push([E[0] + di[0] * along + perp[0] * lat, E[1] + di[1] * along + perp[1] * lat, p.z0 + (p.z1 - p.z0) * t + up]);
+      }
+    }
+    return out;
+  }
+  function buildPath(run, ride) {
+    const S = [], nT = run.track.length;
+    const addPiece = (p, pi, skipFirst, brk) => { const sm = pieceSamples(p); sm.forEach((q, k) => { if (k === 0 && skipFirst) return; const e = { x: q[0], y: q[1], z: q[2], pi, ty: p.type }; if (p.type === 'L') { e.phi = q[3]; e.lh = q[4]; e.ls = q[5]; e.ev = DV[p.din]; } if (k === 0 && brk) e.brk = true; S.push(e); }); };
+    run.track.forEach((p, pi) => addPiece(p, pi, pi > 0, false));
+    const stationMid = Math.floor(pieceSamples(run.track[0]).length / 2);
+    (run.ret || []).forEach((p, k) => {
+      let skip = true, brk = false;
+      if (k === 0) { const sm = pieceSamples(p), l = S[S.length - 1]; const d = Math.hypot(sm[0][0] - l.x, sm[0][1] - l.y) + Math.abs(sm[0][2] - l.z); skip = d < .05; brk = !skip && !ride; }
+      addPiece(p, nT + k, skip, brk);
+    });
+    if (ride) { const sm = pieceSamples(run.track[0]); for (let k = 1; k <= stationMid; k++) S.push({ x: sm[k][0], y: sm[k][1], z: sm[k][2], pi: 0, ty: 'S' }); }
+    {
+      const ox = S.map(e => e.x), oy = S.map(e => e.y); let res = null, acc = 0;
+      for (let k = 0; k < S.length; k++) {
+        const e = S[k];
+        if (e.brk) res = null; else if (k > 0) acc += Math.hypot(ox[k] - ox[k - 1], oy[k] - oy[k - 1]);
+        let dxk = 0, dyk = 0;
+        if (res) { const f = 1 - smt(acc / LDR); dxk = res[0] * f; dyk = res[1] * f; e.x += dxk; e.y += dyk; if (acc >= LDR) res = null; }
+        const nx = S[k + 1];
+        if (e.ty === 'L' && e.ev && (!nx || nx.ty !== 'L' || nx.pi !== e.pi)) { res = [e.ev[1] * LDEL + dxk, e.ev[0] * LDEL + dyk]; acc = 0; }
+      }
+    }
+    const D = [0]; for (let k = 1; k < S.length; k++) { const a = S[k - 1], b = S[k]; D.push(D[k - 1] + (b.brk ? 0 : Math.hypot(b.x - a.x, b.y - a.y, .6 * (b.z - a.z)))); }
+    const loopish = e => e.ty === 'L' || e.ty === 'C', Rr = .62, z0 = S.map(e => e.z);
+    for (let k = 0; k < S.length; k++) {
+      if (loopish(S[k])) continue; let sw = 0, sz = 0;
+      for (let j = k; j >= 0; j--) { const d = D[k] - D[j]; if (d > Rr) break; if (loopish(S[j])) break; const w = 1 - d / Rr; sw += w; sz += w * z0[j]; if (S[j].brk) break; }
+      for (let j = k + 1; j < S.length; j++) { if (S[j].brk) break; const d = D[j] - D[k]; if (d > Rr) break; if (loopish(S[j])) break; const w = 1 - d / Rr; sw += w; sz += w * z0[j]; }
+      S[k].z = sz / sw;
+    }
+    for (let k = 1; k < S.length; k++) { const a = S[k - 1], b = S[k]; D[k] = D[k - 1] + (b.brk ? 0 : Math.hypot(b.x - a.x, b.y - a.y, .6 * (b.z - a.z))); }
+    let nextSup = .25; for (let k = 0; k < S.length; k++) if (D[k] >= nextSup) { S[k].sup = true; nextSup = D[k] + .5; }
+    return { S, D, startS: D[stationMid], endS: D[S.length - 1] };
+  }
+  function posAt(path, s) {
+    const { S, D } = path, last = S.length - 1; let lo = 0, f = 0;
+    if (s <= 0) { lo = 0; } else if (s >= D[last]) { lo = last - 1; f = 1; } else { let hi = last; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (D[m] <= s) lo = m; else hi = m; } f = (s - D[lo]) / ((D[lo + 1] - D[lo]) || 1); }
+    const a = S[lo], b = S[lo + 1];
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f, pi: a.pi, ty: a.ty, k: lo, phi: a.phi === undefined ? undefined : a.phi + (b.phi - a.phi) * f, lh: a.lh === undefined ? undefined : a.lh + (b.lh - a.lh) * f, ev: a.ev, dx: b.x - a.x, dy: b.y - a.y, dz: b.z - a.z };
+  }
+
+  function makeDecor(seed, N, theme, reserved) {
+    const rngf = root.HB.mulberry32(root.HB.hash('d' + seed)), out = {};
+    const kinds = { meadow: ['oak', 'oak', 'pine', 'bush', 'bush', 'flower', 'bench', 'lamp', 'birch', 'bin'], desert: ['cactus', 'cactus', 'rock', 'rock', 'dry', 'palm', 'dune'], winter: ['spine', 'spine', 'spine', 'mound', 'mound', 'snowman', 'lamp', 'rock'] }[theme];
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (reserved.has(i + ',' + j)) continue; if (rngf() < .34) out[i + ',' + j] = kinds[Math.floor(rngf() * kinds.length)]; }
+    return out;
+  }
+
+  // ---------- Hintergrund ----------
+  function makeBgArea(w, h, hz, theme) {
+    const cv = MK(w, h), c = cv.getContext('2d');
+    const skies = { meadow: [R.sky[0], R.sky[1], R.sky[2], R.sky[3], R.sky[4]], desert: ['#E7A55B', '#F2BB72', '#F7CF8E', '#FBE0AB', '#FDEEC9'], winter: ['#7F9FC4', '#9DB6D3', '#BCCEE2', '#D6E2EE', '#EAF1F8'] }[theme];
+    const bandH = hz / skies.length;
+    skies.forEach((col, k) => { rect(c, 0, Math.floor(k * bandH), w, Math.ceil(bandH) + 1, col); if (k) { const by = Math.round(k * bandH); for (let y = by - 3; y < by + 3; y++) for (let x = (y & 1); x < w; x += 2) rect(c, x, y, 1, 1, skies[k - 1]); } });
+    rect(c, 0, Math.round(hz), w, h - Math.round(hz), skies[skies.length - 1]);
+    const hill = (base, amp, f, ph, col, col2) => { for (let x = 0; x < w; x++) { const y = Math.round(base - amp * (.5 + .5 * Math.sin(x * f + ph)) - amp * .35 * Math.sin(x * f * 2.3 + ph * 2)); rect(c, x, y, 1, h - y, col); rect(c, x, y, 1, 1, col2); } };
+    if (theme === 'meadow') { hill(hz + 24, 40, .014, 1, R.sky[2], R.sky[3]); hill(hz + 40, 30, .019, 3, R.pine[2], R.pine[3]); hill(hz + 58, 20, .026, 5, R.grass[1], R.grass[2]); hill(hz + 100, 12, .04, 2, R.grass[2], R.grass[3]); }
+    else if (theme === 'desert') { hill(hz + 24, 44, .013, 2, '#D9955A', '#E8AC6E'); hill(hz + 42, 30, .019, 4, R.sand[1], R.sand[2]); hill(hz + 60, 18, .03, 1, R.sand[2], R.sand[3]); hill(hz + 100, 12, .04, 2, R.sand[3], R.sand[4]); }
+    else { hill(hz + 22, 48, .013, 1, R.snow[1], R.snow[2]); hill(hz + 40, 32, .019, 3, R.pine[1], R.pine[2]); hill(hz + 58, 20, .027, 5, R.snow[2], R.snow[3]); hill(hz + 100, 12, .04, 2, R.snow[3], R.snow[4]); }
+    disc(c, w * .82, Math.max(34, hz * .24), 15, theme === 'winter' ? '#F4F0E0' : '#FFE9A0'); disc(c, w * .82, Math.max(34, hz * .24), 11, theme === 'winter' ? '#FFFFFF' : '#FFF5CC');
+    quantize(c, w, h);
+    return cv;
+  }
+  function cloud(c, x, y, snow) {
+    [[8, 6, 44, 9], [3, 11, 58, 9], [14, 1, 24, 9], [30, 4, 26, 8]].forEach(r => rect(c, x + r[0], y + r[1], r[2], r[3], R.sky[5]));
+    rect(c, x + 12, y + 5, 20, 3, '#FFFFFF'); rect(c, x + 34, y + 7, 12, 2, '#FFFFFF'); rect(c, x + 5, y + 17, 52, 3, snow ? R.snow[1] : R.sky[4]);
+  }
+
+  // ---------- Boden ----------
+  function makeGround(L, theme, seed, reserved, pond, pathTiles) {
+    const cv = MK(L.W, L.H), c = cv.getContext('2d'); const P = proj(L), N = L.N;
+    const ramp = theme === 'meadow' ? R.grass : theme === 'desert' ? R.sand : R.snow;
+    const cA = theme === 'meadow' ? [R.grass[2], R.grass[3]] : theme === 'desert' ? [R.sand[2], R.sand[3]] : [R.snow[3], R.snow[2]];
+    const edgeL = theme === 'meadow' ? R.wood[3] : theme === 'desert' ? '#C98A4B' : R.stone[3], edgeR = theme === 'meadow' ? R.wood[1] : theme === 'desert' ? '#9C6A38' : R.stone[1];
+    poly(c, [P(0, N, 0), P(N, N, 0), P(N, 0, 0), P(N, 0, -1.9), P(N / 2 + 1, N / 2 + 1, -3.4), P(0, N, -1.9)], edgeR);
+    const isP = (i, j) => (pathTiles || []).some(q => q[0] === i && q[1] === j), isW = (i, j) => (pond || []).some(q => q[0] === i && q[1] === j);
+    for (let s = 0; s <= 2 * N - 2; s++) for (let i = 0; i < N; i++) {
+      const j = s - i; if (j < 0 || j >= N) continue; const a = P(i, j, 0), top = [P(i, j, 0), P(i + 1, j, 0), P(i + 1, j + 1, 0), P(i, j + 1, 0)];
+      if (isW(i, j)) {
+        poly(c, top, (i + j) % 2 ? R.water[2] : R.water[1]);
+        for (let k = 0; k < 7; k++) { const rx = hsh(i, j, k + 3) * .8 + .1, ry = hsh(i, j, k + 33) * .8 + .1; const p = P(i + rx, j + ry, 0); rect(c, p[0] - 2, p[1], 5, 1, R.water[3]); }
+        for (let k = 0; k < 2; k++) { const p = P(i + .25 + hsh(i, j, k + 90) * .5, j + .25 + hsh(i, j, k + 91) * .5, 0); disc(c, p[0], p[1], 3, R.green[1]); rect(c, p[0] - 1, p[1] - 1, 3, 1, R.green[3]); rect(c, p[0] + 1, p[1] - 2, 2, 1, R.pink[1]); }
+      } else if (isP(i, j)) {
+        poly(c, top, (i + j) % 2 ? R.stone[4] : R.stone[3]);
+        for (let k = 1; k < 4; k++) { const q0 = P(i + k * .25, j, 0), q1 = P(i + k * .25, j + 1, 0), r0 = P(i, j + k * .25, 0), r1 = P(i + 1, j + k * .25, 0); pl(c, q0[0], q0[1], q1[0], q1[1], R.stone[2], 1); pl(c, r0[0], r0[1], r1[0], r1[1], R.stone[2], 1); }
+        for (let k = 0; k < 8; k++) { const p = P(i + hsh(i, j, k + 50), j + hsh(i, j, k + 60), 0); rect(c, p[0], p[1], 2, 1, hsh(i, j, k + 70) > .5 ? R.stone[5] : R.stone[3]); }
+      } else {
+        poly(c, top, (i + j) % 2 ? cA[0] : cA[1]);
+        for (let k = 0; k < 16; k++) { const rx = hsh(i, j, k), ry = hsh(i, j, k + 17); const px = a[0] + Math.round((rx - ry) * TW / 2), py = a[1] + Math.round((rx + ry) * TH / 2); const lt = hsh(i, j, k + 40); rect(c, px, py, 1, 1, lt > .66 ? ramp[ramp.length - 2] : lt > .33 ? ramp[1] : ramp[ramp.length - 1]);
+          if (theme === 'meadow' && k < 5 && hsh(i, j, k + 7) > .45) { rect(c, px, py - 1, 1, 2, R.grass[1]); rect(c, px + 1, py - 2, 1, 2, R.grass[1]); rect(c, px - 1, py - 2, 1, 2, R.grass[4]); } }
+      }
+      if (i === N - 1) { poly(c, [P(i + 1, j, 0), P(i + 1, j + 1, 0), P(i + 1, j + 1, -1.9), P(i + 1, j, -1.9)], edgeR); for (let z = 1; z < 4; z++) { const e0 = P(i + 1, j, -z * .5), e1 = P(i + 1, j + 1, -z * .5); pl(c, e0[0], e0[1], e1[0], e1[1], theme === 'meadow' ? R.wood[0] : R.stone[1], 1); } for (let k = 0; k < 4; k++) { const p = P(i + 1, j + hsh(i, j, k + 200), -hsh(i, j, k + 210) * 1.6); rect(c, p[0], p[1], 2, 1, R.wood[2]); } }
+      if (j === N - 1) { poly(c, [P(i, j + 1, 0), P(i + 1, j + 1, 0), P(i + 1, j + 1, -1.9), P(i, j + 1, -1.9)], edgeL); for (let z = 1; z < 4; z++) { const e0 = P(i, j + 1, -z * .5), e1 = P(i + 1, j + 1, -z * .5); pl(c, e0[0], e0[1], e1[0], e1[1], theme === 'meadow' ? R.wood[2] : R.stone[2], 1); } for (let k = 0; k < 4; k++) { const p = P(i + hsh(i, j, k + 220), j + 1, -hsh(i, j, k + 230) * 1.6); rect(c, p[0], p[1], 2, 1, R.wood[4]); } }
+    }
+    (pond || []).forEach(q => { const i = q[0], j = q[1], has = (a, b) => isW(a, b);
+      const edge = (x0, y0, x1, y1) => { const p0 = P(x0, y0, 0), p1 = P(x1, y1, 0); pl(c, p0[0], p0[1], p1[0], p1[1], R.stone[4], 1); pl(c, p0[0], p0[1] + 1, p1[0], p1[1] + 1, R.stone[1], 2); };
+      if (!has(i, j - 1)) edge(i, j, i + 1, j); if (!has(i + 1, j)) edge(i + 1, j, i + 1, j + 1); if (!has(i, j + 1)) edge(i, j + 1, i + 1, j + 1); if (!has(i - 1, j)) edge(i, j, i, j + 1); });
+    const fence = (x0, y0, x1, y1) => { const n = 12; for (let k = 0; k <= n; k++) { const t = k / n, p0 = P(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 0), p1 = P(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, .5); pl(c, p0[0], p0[1], p1[0], p1[1], R.wood[3], 2); rect(c, p1[0] - 1, p1[1] - 1, 4, 1, R.wood[4]); }
+      [.16, .34].forEach(h => { const q0 = P(x0, y0, h), q1 = P(x1, y1, h); pl(c, q0[0], q0[1], q1[0], q1[1], R.wood[2], 2); pl(c, q0[0], q0[1] - 1, q1[0], q1[1] - 1, R.wood[4], 1); }); };
+    fence(N - .06, 0.1, N - .06, N - .1); fence(0.1, N - .06, N - .1, N - .06);
+    quantize(c, L.W, L.H);
+    return cv;
+  }
+
+  // ---------- Dekor ----------
+  function drawDecor(c, P, i, j, kind, t) {
+    const p = P(i + .5, j + .5, 0), x = p[0], y = p[1];
+    const sh = w => { c.fillStyle = 'rgba(20,50,20,.24)'; c.beginPath(); c.ellipse(x + 4, y + 1, w, w * .42, 0, 0, 7); c.fill(); };
+    const blobs = (arr, ox, oy) => arr.forEach(b => disc(c, x + ox + b[0], y + oy + b[1], b[2], b[3]));
+    if (kind === 'oak') {
+      sh(17); rect(c, x - 3, y - 15, 6, 15, R.wood[1]); rect(c, x - 1, y - 15, 2, 15, R.wood[2]); rect(c, x - 5, y - 2, 4, 2, R.wood[1]); rect(c, x + 2, y - 2, 4, 2, R.wood[1]);
+      blobs([[0, -26, 14, R.grass[0]], [-9, -20, 10, R.grass[0]], [9, -20, 10, R.grass[0]], [0, -30, 11, R.grass[0]], [0, -27, 12, R.grass[1]], [-8, -21, 8, R.grass[1]], [8, -21, 8, R.grass[1]], [0, -31, 9, R.grass[1]], [-5, -31, 5, R.grass[3]], [4, -26, 4, R.grass[3]], [-9, -22, 3, R.grass[3]], [-6, -35, 2, R.grass[4]]], 0, 0);
+      for (let k = 0; k < 14; k++) rect(c, x - 14 + Math.floor(hsh(i, j, k) * 28), y - 40 + Math.floor(hsh(i, j, k + 9) * 22), 2, 1, k % 2 ? R.grass[0] : R.grass[4]);
+    } else if (kind === 'birch') {
+      sh(11); rect(c, x - 2, y - 20, 4, 20, '#E8E8E0'); rect(c, x, y - 20, 2, 20, '#C4C9D2'); [-14, -9, -5, -17].forEach(m => rect(c, x - 2, y + m, 3, 1, R.base[3]));
+      blobs([[0, -27, 9, R.grass[2]], [-5, -22, 6, R.grass[2]], [5, -22, 6, R.grass[2]], [0, -31, 6, R.grass[2]], [-3, -30, 4, R.grass[4]], [3, -25, 3, R.grass[4]]], 0, 0);
+    } else if (kind === 'pine') {
+      sh(13); rect(c, x - 2, y - 9, 5, 9, R.wood[1]);
+      [[-12, 11, R.pine[0]], [-21, 9, R.pine[1]], [-30, 7, R.pine[2]], [-38, 5, R.pine[2]]].forEach((tt, k) => { poly(c, [[x, y + tt[0] - 12], [x + tt[1] + 2, y + tt[0] + 6], [x - tt[1] - 1, y + tt[0] + 6]], tt[2]); pl(c, x - tt[1] + 2 + k, y + tt[0] + 4, x + tt[1] - 2 - k, y + tt[0] + 4, R.pine[0], 1); rect(c, x - 2 - k, y + tt[0] - 3 + k, 2, 4, R.pine[3]); });
+    } else if (kind === 'spine') {
+      sh(13); rect(c, x - 2, y - 9, 5, 9, R.wood[1]);
+      [[-11, 12, R.pine[1]], [-21, 10, R.pine[2]], [-30, 7, R.pine[2]]].forEach(tt => { poly(c, [[x, y + tt[0] - 12], [x + tt[1] + 2, y + tt[0] + 6], [x - tt[1] - 1, y + tt[0] + 6]], tt[2]); rect(c, x - tt[1] + 3, y + tt[0] + 2, tt[1] * 2 - 4, 4, R.snow[4]); rect(c, x - 2, y + tt[0] - 10, 5, 5, R.snow[4]); rect(c, x - 5, y + tt[0] - 1, 4, 3, R.snow[3]); });
+    } else if (kind === 'bush') {
+      sh(12); blobs([[-5, -6, 6, R.grass[0]], [5, -6, 6, R.grass[0]], [0, -9, 6, R.grass[0]], [-5, -7, 5, R.grass[2]], [5, -7, 5, R.grass[2]], [0, -10, 5, R.grass[3]], [-3, -11, 2, R.grass[4]]], 0, 0);
+      [[-7, -8], [4, -7], [0, -12], [8, -9], [-2, -5]].forEach(f => { rect(c, x + f[0], y + f[1], 2, 2, R.red[3]); rect(c, x + f[0], y + f[1], 1, 1, R.red[4]); });
+    } else if (kind === 'flower') {
+      [[R.red[3], -10, -3], [R.yellow[3], 0, -6], ['#FFFFFF', 9, -2], [R.purple[2], -4, 2], [R.pink[1], 6, 3], [R.cyan[1], -12, 4], [R.orange[3], 12, 3], [R.red[3], 2, 5]].forEach(f => { rect(c, x + f[1], y + f[2] - 1, 1, 4, R.grass[1]); rect(c, x + f[1] - 2, y + f[2] - 3, 5, 3, f[0]); rect(c, x + f[1], y + f[2] - 3, 1, 1, R.yellow[4]); rect(c, x + f[1] - 1, y + f[2] - 4, 3, 1, f[0]); });
+    } else if (kind === 'bench') {
+      sh(11); rect(c, x - 8, y - 7, 16, 3, R.wood[3]); rect(c, x - 8, y - 11, 16, 3, R.wood[2]); rect(c, x - 8, y - 14, 16, 2, R.wood[3]); rect(c, x - 8, y - 4, 2, 5, R.stone[1]); rect(c, x + 6, y - 4, 2, 5, R.stone[1]); rect(c, x - 8, y - 14, 16, 1, R.wood[4]); rect(c, x - 8, y - 7, 16, 1, R.wood[4]);
+    } else if (kind === 'lamp') {
+      sh(6); rect(c, x - 1, y - 28, 3, 28, R.stone[1]); rect(c, x, y - 28, 1, 28, R.stone[3]); rect(c, x - 4, y - 33, 9, 6, R.yellow[3]); rect(c, x - 4, y - 34, 9, 1, R.stone[0]); rect(c, x - 3, y - 32, 7, 3, R.yellow[4]); rect(c, x - 5, y - 36, 11, 2, R.stone[0]); rect(c, x - 3, y - 2, 7, 2, R.stone[1]);
+    } else if (kind === 'bin') {
+      sh(6); rect(c, x - 4, y - 11, 9, 11, R.green[1]); rect(c, x - 4, y - 11, 3, 11, R.green[2]); rect(c, x - 5, y - 13, 11, 2, R.green[0]); rect(c, x - 2, y - 7, 5, 1, R.base[3]);
+    } else if (kind === 'cactus') {
+      sh(8); rect(c, x - 3, y - 21, 6, 21, R.green[1]); rect(c, x - 1, y - 21, 2, 21, R.green[3]); rect(c, x - 10, y - 15, 7, 3, R.green[1]); rect(c, x - 10, y - 22, 3, 8, R.green[1]); rect(c, x + 3, y - 12, 7, 3, R.green[1]); rect(c, x + 7, y - 19, 3, 8, R.green[1]); rect(c, x - 2, y - 22, 4, 2, R.pink[1]); for (let k = 0; k < 6; k++) rect(c, x - 3 + (k % 2) * 5, y - 18 + k * 3, 1, 1, R.green[4]);
+    } else if (kind === 'rock') {
+      sh(12); poly(c, [[x - 11, y], [x - 8, y - 9], [x, y - 12], [x + 9, y - 8], [x + 12, y]], R.stone[2]); poly(c, [[x - 8, y - 9], [x, y - 12], [x + 2, y - 5], [x - 9, y - 2]], R.stone[4]); rect(c, x + 3, y - 6, 8, 5, R.stone[1]); rect(c, x - 5, y - 9, 4, 1, R.stone[5]);
+    } else if (kind === 'dry') {
+      sh(7); [[-5, -8], [0, -12], [5, -6], [-2, -4], [3, -10]].forEach(b => pl(c, x, y, x + b[0], y + b[1], R.wood[3], 1));
+    } else if (kind === 'palm') {
+      sh(10); c.strokeStyle = R.wood[2]; c.lineWidth = 3; c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 3, y - 15, x + 2, y - 26); c.stroke(); c.lineWidth = 1;
+      [[-13, -4], [13, -4], [-9, 5], [9, 5], [0, -9], [-5, 0], [6, 1]].forEach(f => { c.strokeStyle = R.green[2]; c.lineWidth = 2; c.beginPath(); c.moveTo(x + 2, y - 26); c.quadraticCurveTo(x + 2 + f[0] / 2, y - 32 + f[1] / 2, x + 2 + f[0], y - 24 + f[1]); c.stroke(); }); c.lineWidth = 1; rect(c, x + 1, y - 26, 3, 3, R.wood[1]);
+    } else if (kind === 'dune') {
+      c.fillStyle = R.sand[1]; c.beginPath(); c.ellipse(x, y - 1, 16, 6, 0, 3.14, 0); c.fill(); c.fillStyle = R.sand[3]; c.beginPath(); c.ellipse(x - 3, y - 3, 11, 4, 0, 3.14, 0); c.fill();
+    } else if (kind === 'mound') {
+      c.fillStyle = R.snow[1]; c.beginPath(); c.ellipse(x, y - 1, 15, 7, 0, 3.14, 0); c.fill(); c.fillStyle = R.snow[4]; c.beginPath(); c.ellipse(x - 3, y - 3, 10, 4, 0, 3.14, 0); c.fill();
+    } else if (kind === 'snowman') {
+      sh(9); disc(c, x, y - 6, 8, R.snow[3]); disc(c, x, y - 17, 6, R.snow[4]); disc(c, x, y - 25, 5, '#FFFFFF'); rect(c, x - 2, y - 27, 1, 1, R.base[0]); rect(c, x + 2, y - 27, 1, 1, R.base[0]); rect(c, x, y - 24, 5, 1, R.orange[2]); rect(c, x - 5, y - 31, 10, 2, R.base[1]); rect(c, x - 3, y - 36, 6, 5, R.base[1]); rect(c, x - 12, y - 19, 6, 1, R.wood[2]); rect(c, x + 6, y - 19, 6, 1, R.wood[2]); rect(c, x - 1, y - 14, 2, 2, R.base[0]); rect(c, x - 1, y - 9, 2, 2, R.base[0]);
+    }
+  }
+
+  // ---------- Bauten ----------
+  function drawHouse(c, P, hi, hj, col) {
+    const x0 = hi, y0 = hj;
+    box(c, P, x0 + .08, y0 + .1, 0, .84, .8, .8, '#E9D8B0', R.stone[0]);
+    poly(c, [P(x0 + .2, y0 + .9, 0), P(x0 + .42, y0 + .9, 0), P(x0 + .42, y0 + .9, .46), P(x0 + .2, y0 + .9, .46)], R.wood[1], R.wood[0]);
+    poly(c, [P(x0 + .54, y0 + .9, .24), P(x0 + .8, y0 + .9, .24), P(x0 + .8, y0 + .9, .56), P(x0 + .54, y0 + .9, .56)], R.sky[1], R.stone[1]);
+    const w1 = P(x0 + .67, y0 + .9, .24), w2 = P(x0 + .67, y0 + .9, .56); pl(c, w1[0], w1[1], w2[0], w2[1], R.stone[1], 1);
+    poly(c, [P(x0 + .92, y0 + .26, .24), P(x0 + .92, y0 + .62, .24), P(x0 + .92, y0 + .62, .56), P(x0 + .92, y0 + .26, .56)], R.sky[1], R.stone[1]);
+    const A = P(x0, y0, .8), B = P(x0 + 1, y0, .8), Cc = P(x0 + 1, y0 + 1, .8), Dd = P(x0, y0 + 1, .8), r1 = P(x0, y0 + .5, 1.3), r2 = P(x0 + 1, y0 + .5, 1.3);
+    poly(c, [Dd, Cc, r2, r1], col[2], R.red[0]); poly(c, [B, Cc, r2], col[1], R.red[0]); poly(c, [A, B, r2, r1], col[3], R.red[0]);
+    for (let k = 1; k < 4; k++) { const a = P(x0, y0 + 1 - k * .125, .8 + k * .125), b = P(x0 + 1, y0 + 1 - k * .125, .8 + k * .125); pl(c, a[0], a[1], b[0], b[1], col[1], 1); }
+    const ch = P(x0 + .78, y0 + .3, 1.1); rect(c, ch[0] - 2, ch[1] - 10, 6, 11, R.stone[1]); rect(c, ch[0] - 2, ch[1] - 11, 6, 2, R.stone[3]); rect(c, ch[0] - 1, ch[1] - 10, 2, 10, R.stone[2]);
+    const sg = P(x0 + .5, y0 + .96, 1.02); rect(c, sg[0] - 12, sg[1] - 4, 24, 8, R.yellow[3]); rect(c, sg[0] - 12, sg[1] - 4, 24, 1, R.yellow[4]); rect(c, sg[0] - 12, sg[1] + 3, 24, 1, R.yellow[0]); for (let k = 0; k < 4; k++) rect(c, sg[0] - 9 + k * 5, sg[1] - 1, 3, 2, col[1]);
+  }
+  function drawPlatform(c, P, ox, sy) {
+    box(c, P, ox, sy - .03, 0, 1, .24, .14, R.stone[4], R.stone[1]); box(c, P, ox, sy + .79, 0, 1, .24, .14, R.stone[4], R.stone[1]);
+    const a = P(ox, sy + .21, .14), b = P(ox + 1, sy + .21, .14), d = P(ox, sy + .79, .14), e = P(ox + 1, sy + .79, .14); pl(c, a[0], a[1], b[0], b[1], R.yellow[3], 1); pl(c, d[0], d[1], e[0], e[1], R.yellow[3], 1);
+  }
+  function drawCanopy(c, P, ox, sy, col) {
+    [[ox + .1, sy + .02], [ox + .9, sy + .02], [ox + .1, sy + .96], [ox + .9, sy + .96]].forEach(q => { const a = P(q[0], q[1], .12), b = P(q[0], q[1], 1.0); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 2); pl(c, a[0] + 2, a[1], b[0] + 2, b[1], R.stone[2], 1); });
+    const A = P(ox - .06, sy - .12, 1.0), B = P(ox + 1.06, sy - .12, 1.0), Cc = P(ox + 1.06, sy + 1.12, 1.0), D = P(ox - .06, sy + 1.12, 1.0);
+    poly(c, [A, B, Cc, D], col[2], R.red[0]);
+    for (let k = 0; k < 6; k++) { const p0 = P(ox + .1 + k * .16, sy - .12, 1.0), p1 = P(ox + .1 + k * .16, sy + 1.12, 1.0); pl(c, p0[0], p0[1], p1[0], p1[1], '#FFFFFF', 2); }
+    const e0 = P(ox - .06, sy + 1.12, 1.0), e1 = P(ox + 1.06, sy + 1.12, 1.0); pl(c, e0[0], e0[1] + 1, e1[0], e1[1] + 1, col[0], 3); pl(c, e0[0], e0[1] + 4, e1[0], e1[1] + 4, R.base[3], 1);
+  }
+  function drawGate(c, P, gi, gj, col) {
+    const a0 = P(gi + .5, gj + .08, 0), a1 = P(gi + .5, gj + .08, 1.25), b0 = P(gi + .5, gj + .92, 0), b1 = P(gi + .5, gj + .92, 1.25);
+    [[a0, a1], [b0, b1]].forEach(s => { pl(c, s[0][0], s[0][1], s[1][0], s[1][1], R.wood[3], 4); pl(c, s[0][0] - 1, s[0][1], s[1][0] - 1, s[1][1], R.wood[4], 1); rect(c, s[1][0] - 3, s[1][1] - 2, 8, 3, R.wood[1]); });
+    poly(c, [[a1[0] - 4, a1[1] - 10], [b1[0] + 4, b1[1] - 10], [b1[0] + 4, b1[1] + 5], [a1[0] - 4, a1[1] + 5]], col[2], R.red[0]);
+    const m = P(gi + .5, gj + .5, 1.25); rect(c, m[0] - 14, m[1] - 5, 28, 6, R.yellow[3]); for (let k = 0; k < 6; k++) rect(c, m[0] - 11 + k * 4, m[1] - 3, 2, 2, col[1]);
+    const rail = yy => { [.18, .34].forEach(h => { const r0 = P(gi - 1, gj + yy, h), r1 = P(gi + .5, gj + yy, h); pl(c, r0[0], r0[1], r1[0], r1[1], R.stone[3], 1); }); for (let k = 0; k <= 3; k++) { const pp = P(gi - 1 + k * .5, gj + yy, 0), pq = P(gi - 1 + k * .5, gj + yy, .36); pl(c, pp[0], pp[1], pq[0], pq[1], R.stone[2], 2); } };
+    rail(.1); rail(.9);
+  }
+  function drawBrake(c, P, bi, bj) {
+    for (let k = 0; k < 5; k++) { const x = bi + .14 + k * .18; box(c, P, x, bj + .3, .06, .08, .4, .1, k % 2 ? R.base[3] : R.yellow[3], null); }
+  }
+  function drawFlag(c, P, ti, tj, on, t) {
+    const a = P(ti + .5, tj + .5, 0), b = P(ti + .5, tj + .5, 1.4); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 2); rect(c, b[0] - 1, b[1] - 1, 4, 3, R.yellow[3]);
+    const w = Math.round(Math.sin(t * 6) * 1.5); poly(c, [[b[0] + 2, b[1] - 1], [b[0] + 16, b[1] + 3 + w], [b[0] + 2, b[1] + 8]], on ? '#5CC283' : R.yellow[3], R.base[1]);
+  }
+  function guest(c, x, y, col, hair, step, up, kid) {
+    const k = kid ? 0 : 1;
+    rect(c, x - 2, y - 11 - k, 4, 4, R.skin[2]); rect(c, x - 2, y - 12 - k, 4, 2, hair); rect(c, x - 2, y - 7 - k, 4, 4 + k, col); rect(c, x - 3, y - 7 - k, 1, 3, col); rect(c, x + 2, y - 7 - k, 1, 3, col);
+    rect(c, x - 2, y - 3, 2, 3 + (step ? 1 : 0), R.base[1]); rect(c, x, y - 3, 2, 3 + (step ? 0 : 1), R.base[1]);
+    if (up) { rect(c, x - 4, y - 14 - k, 1, 6, R.skin[2]); rect(c, x + 3, y - 14 - k, 1, 6, R.skin[2]); }
+    if (kid) { rect(c, x + 3, y - 18, 3, 4, R.red[3]); rect(c, x + 4, y - 14, 1, 4, '#FFFFFF'); }
+  }
+  const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
+  const HAIR = [R.wood[1], R.base[1], R.yellow[1], R.wood[3], R.stone[4]];
+
+  // ---------- Statische Schichten (einmal pro Streckenaenderung) ----------
+  function staticItems(L, S) {
+    const P = proj(L), run = S.run, tc = R[S.trackCol || 'red'], st = run.track[0], sx = st.i, sy = st.j, theme = S.theme, items = [];
+    const Sm = S.path.S, occ = new Set(run.track.concat(run.ret).map(p => p.i + ',' + p.j));
+    const sc = theme === 'meadow' ? R.grass[0] : theme === 'desert' ? R.sand[0] : R.snow[0];
+    items.push({ d: -1, f: c => { for (let k = 0; k < Sm.length - 1; k++) { if (Sm[k + 1].brk) continue; const p = P(Sm[k].x + .08, Sm[k].y + .08, 0), q = P(Sm[k + 1].x + .08, Sm[k + 1].y + .08, 0); pl(c, p[0], p[1], q[0], q[1], sc, 3); } } });
+    for (const key in S.decor) { if (occ.has(key)) continue; const [i, j] = key.split(',').map(Number), kind = S.decor[key]; items.push({ d: i + j + 1, f: c => drawDecor(c, P, i, j, kind, 0) }); }
+    if (S.station) {
+      const an = P(sx - 1, sy - 1, 0), SP = S.station, sp = (c, k) => { const q = SP[k]; c.drawImage(q.cv, an[0] + q.ox, an[1] + q.oy); };
+      items.push({ d: sx + 1 + sy - 1 + 1.3, f: c => sp(c, 'house') });
+      items.push({ d: sx + sy + .5 + .05, f: c => sp(c, 'plat') });
+      items.push({ d: sx + sy + .5 + 1.35, f: c => sp(c, 'canopy') });
+      if (S.gate) items.push({ d: S.gate[0] + S.gate[1] + .55 + .6, f: c => sp(c, 'gate') });
+    } else {
+    items.push({ d: sx + sy - 1 + 1.3, f: c => drawHouse(c, P, sx, sy - 1, tc) });
+    items.push({ d: sx + sy + .5 + .05, f: c => drawPlatform(c, P, sx, sy) });
+    items.push({ d: sx + sy + .5 + 1.35, f: c => drawCanopy(c, P, sx, sy, tc) });
+    if (S.gate) items.push({ d: S.gate[0] + S.gate[1] + .55 + .6, f: c => drawGate(c, P, S.gate[0], S.gate[1], tc) });
+    }
+    items.push({ d: run.exit.i + run.exit.j + .55, f: c => drawBrake(c, P, run.exit.i, run.exit.j) });
+    let pn = [0, 1];
+    for (let k = 0; k < Sm.length - 1; k++) {
+      const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
+      let dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy); if (l > 1e-4) { dx /= l; dy /= l; pn = [-dy, dx]; } let nx = pn[0], ny = pn[1]; if (a.ty === 'L' && a.ev) { nx = -a.ev[1]; ny = a.ev[0]; }
+      items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ls || 0) * .03, f: c => {
+        if (a.sup && a.z > .25 && a.ty !== 'S' && a.ty !== 'L') {
+          const top = a.z - .05;
+          [[-1, R.stone[2]], [1, R.stone[4]]].forEach(cc => { const g0 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], 0), g1 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], top); pl(c, g0[0], g0[1], g1[0], g1[1], cc[1], 2); });
+          for (let z = 0; z < top - .2; z += .75) { const zt = Math.min(top, z + .75), q0 = P(a.x - nx * .12, a.y - ny * .12, z), q1 = P(a.x + nx * .12, a.y + ny * .12, zt), q2 = P(a.x + nx * .12, a.y + ny * .12, z), q3 = P(a.x - nx * .12, a.y - ny * .12, zt); pl(c, q0[0], q0[1], q1[0], q1[1], R.stone[3], 1); pl(c, q2[0], q2[1], q3[0], q3[1], R.stone[3], 1); const m0 = P(a.x - nx * .12, a.y - ny * .12, zt), m1 = P(a.x + nx * .12, a.y + ny * .12, zt); pl(c, m0[0], m0[1], m1[0], m1[1], R.stone[1], 1); }
+          const f0 = P(a.x, a.y, 0); rect(c, f0[0] - 5, f0[1] - 1, 11, 3, R.stone[1]); rect(c, f0[0] - 5, f0[1] - 1, 11, 1, R.stone[4]); rect(c, f0[0] - 4, f0[1], 1, 1, R.base[3]); rect(c, f0[0] + 4, f0[1], 1, 1, R.base[3]);
+        }
+        const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
+        pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
+        if (k % 2 === 0) { const t0 = P(a.x - nx * .19, a.y - ny * .19, a.z), t1 = P(a.x + nx * .19, a.y + ny * .19, a.z); pl(c, t0[0], t0[1] + 2, t1[0], t1[1] + 2, R.stone[1], 1); pl(c, t0[0], t0[1] + 1, t1[0], t1[1] + 1, R.stone[3], 1); }
+        [-1, 1].forEach(sg => { const r0 = P(a.x + nx * .115 * sg, a.y + ny * .115 * sg, a.z), r1 = P(b.x + nx * .115 * sg, b.y + ny * .115 * sg, b.z); pl(c, r0[0], r0[1] + 2, r1[0], r1[1] + 2, tc[0], 1); pl(c, r0[0], r0[1] + 1, r1[0], r1[1] + 1, tc[1], 1); pl(c, r0[0], r0[1], r1[0], r1[1], tc[2], 1); pl(c, r0[0], r0[1] - 1, r1[0], r1[1] - 1, tc[3], 1); pl(c, r0[0], r0[1] - 2, r1[0], r1[1] - 2, tc[4], 1); });
+      } });
+    }
+    return items;
+  }
+  function makeStatic(L, S) {
+    const items = staticItems(L, S).sort((a, b) => a.d - b.d), groups = {};
+    items.forEach(it => { const k = Math.max(0, Math.floor((it.d + 1) * 2)); (groups[k] = groups[k] || []).push(it); });
+    const slabs = [];
+    Object.keys(groups).map(Number).sort((a, b) => a - b).forEach(k => {
+      const cv = MK(L.W, L.H), c = cv.getContext('2d'); c.imageSmoothingEnabled = false; groups[k].forEach(it => it.f(c)); quantize(c, L.W, L.H);
+      const im = c.getImageData(0, 0, L.W, L.H).data; let x0 = L.W, y0 = L.H, x1 = -1, y1 = -1;
+      for (let y = 0; y < L.H; y++) { const row = y * L.W * 4; for (let x = 0; x < L.W; x++) if (im[row + x * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; } }
+      if (x1 < 0) return; const w = x1 - x0 + 1, h = y1 - y0 + 1, cv2 = MK(w, h); cv2.getContext('2d').drawImage(cv, x0, y0, w, h, 0, 0, w, h);
+      slabs.push({ k, d0: k / 2 - 1, cv: cv2, x: x0, y: y0 });
+    });
+    return { slabs };
+  }
+
+  // ---------- Bildzeichnung (nur Bewegtes) ----------
+  function draw(c, L, S) {
+    const P = proj(L), run = S.run, t = S.t, theme = S.theme, tc = R[S.trackCol || 'red'], st = run.track[0], sx = st.i, sy = st.j, dyn = [], boxes = [];
+    c.imageSmoothingEnabled = false; c.lineCap = 'butt'; c.lineJoin = 'miter';
+    c.clearRect(0, 0, L.W, L.H); c.drawImage(S.ground, 0, 0);
+    if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0); dyn.push({ d: S.target.i + S.target.j + 1.0, f: c2 => drawFlag(c2, P, S.target.i, S.target.j, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
+    (S.pond || []).forEach(q => { const p = P(q[0] + .5, q[1] + .5, 0), ph = Math.floor(t * 2.5 + q[0] * 2 + q[1]) % 4; dyn.push({ d: q[0] + q[1] + .3, f: c2 => { rect(c2, p[0] - 9 + ph * 4, p[1] - 3 + (ph & 1), 3, 1, '#FFFFFF'); rect(c2, p[0] + 6 - ph * 3, p[1] + 1, 3, 1, R.water[4]); } }); });
+    if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
+    const qy = sy + 1.5;
+    for (let g = 0; g < 6; g++) { const ph = (t * .1 + g / 6) % 1, xx = (sx + 2.9) - ph * 1.9, yy = qy + (g % 2 ? .12 : -.12) - Math.max(0, (sx + 1.6 - xx)) * 1.6, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + .7), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
+    [[sx + 3.2, sy + 3.3, 0], [sx + 5.1, sy + 4.4, 1], [sx + 2.3, sy + 4.6, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
+    const Sm = S.path.S;
+    for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
+    if (S.cars) S.cars.forEach((cs, ci) => {
+      const q = posAt(S.ridePath, cs), cz = q.z + .08, cp = P(q.x, q.y, q.z); boxes.push([cp[0] - 40, cp[1] - 50, 80, 90]);
+      dyn.push({ d: q.x + q.y + .5 + q.z * .02, f: c2 => {
+        if (q.ty === 'L' && q.phi !== undefined) {
+          const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi), N = [-ev[0] * sn, -ev[1] * sn, cs], rv = [-ev[1], ev[0], 0], F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
+          const at = (h, sd) => [q.x + N[0] * h + rv[0] * (sd || 0), q.y + N[1] * h + rv[1] * (sd || 0), q.z + N[2] * h + rv[2] * (sd || 0)];
+          const b0 = at(.14); obox(c2, P, b0[0], b0[1], b0[2], F, .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0], op);
+          const b1 = at(.21); obox(c2, P, b1[0], b1[1], b1[2], F, .1, .115, .018, R.base[1], null, op);
+          [-1, 1].forEach((s2, k) => { const gc = S.cols[(ci * 2 + k) % S.cols.length], bp = P(...at(.27, .055 * s2)), hp = P(...at(.34, .055 * s2)), ha = P(...at(.38, .055 * s2)), tp = P(...at(.55, .055 * s2 * 1.6));
+            rect(c2, bp[0] - 2, bp[1] - 1, 4, 3, gc); rect(c2, hp[0] - 2, hp[1] - 2, 4, 4, R.skin[2]); rect(c2, ha[0] - 2, ha[1] - 1, 4, 2, HAIR[(ci + k) % HAIR.length]); pl(c2, hp[0], hp[1], tp[0], tp[1], R.skin[2], 1); });
+          return;
+        }
+        const dn = q.dz < -.02, loop = q.ty === 'L', hl = Math.hypot(q.dx, q.dy) || 1, rr = [-q.dy / hl, q.dx / hl];
+        obox(c2, P, q.x, q.y, cz + .06, [q.dx, q.dy, q.dz], .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0]);
+        obox(c2, P, q.x - q.dx / hl * .02, q.y - q.dy / hl * .02, cz + .13, [q.dx, q.dy, q.dz], .1, .115, .018, R.base[1], null);
+        if (ci === 0) obox(c2, P, q.x + q.dx / hl * .22, q.y + q.dy / hl * .22, cz + .03, [q.dx, q.dy, q.dz], .06, .08, .04, tc[1], R.base[0]);
+        [-1, 1].forEach((s, k) => { const h = P(q.x + rr[0] * .055 * s, q.y + rr[1] * .055 * s, cz + .34); const gc = S.cols[(ci * 2 + k) % S.cols.length]; rect(c2, h[0] - 2, h[1] - 2, 4, 4, R.skin[2]); rect(c2, h[0] - 2, h[1] - 3, 4, 2, HAIR[(ci + k) % HAIR.length]); rect(c2, h[0] - 2, h[1] + 2, 4, 3, gc); if (dn || loop) { rect(c2, h[0] - 4, h[1] - 6, 1, 6, R.skin[2]); rect(c2, h[0] + 3, h[1] - 6, 1, 6, R.skin[2]); } });
+      } });
+    });
+    dyn.sort((a, b) => a.d - b.d); let di = 0;
+    S.static.slabs.forEach(sl => { while (di < dyn.length && dyn[di].d < sl.d0) { dyn[di].f(c); di++; } c.drawImage(sl.cv, sl.x, sl.y); });
+    while (di < dyn.length) { dyn[di].f(c); di++; }
+    if (theme === 'winter') for (let k = 0; k < 60; k++) { const px = (hsh(k, 3, 9) * L.W + t * (7 + (k % 5))) % L.W, py = (hsh(k, 5, 7) * L.H + t * (16 + (k % 7) * 2)) % L.H; rect(c, px, py, 2, 2, '#FFFFFF'); }
+    if (S.ghost) {
+      const gh = S.ghost, z = (gh.z0 + gh.z1) / 2, i = gh.i, j = gh.j, ok = gh.valid;
+      dither(c, [P(i + .06, j + .06, z), P(i + .94, j + .06, z), P(i + .94, j + .94, z), P(i + .06, j + .94, z)], ok ? (gh.stall ? '#FF9A3C' : '#FFE27A') : '#E25046');
+      const sm = pieceSamples({ i, j, din: gh.din, dout: gh.dout, z0: gh.z0, z1: gh.z1, type: gh.type }), col = ok ? '#FFFFFF' : '#FFD2CE';
+      for (let k = 0; k < sm.length - 1; k++) { const p = P(sm[k][0], sm[k][1], sm[k][2] + .05), q = P(sm[k + 1][0], sm[k + 1][1], sm[k + 1][2] + .05); pl(c, p[0], p[1], q[0], q[1], col, 3); }
+      const gc = P(i + .5, j + .5, 0), gt = P(i + .5, j + .5, z); for (let y = gt[1]; y < gc[1]; y += 3) rect(c, gc[0], y, 1, 1, '#FFFFFF');
+      const m = P(i + .5, j + .5, z);
+      if (!ok) { pl(c, m[0] - 6, m[1] - 6, m[0] + 6, m[1] + 6, '#FFFFFF', 3); pl(c, m[0] + 6, m[1] - 6, m[0] - 6, m[1] + 6, '#FFFFFF', 3); }
+      else { const e = P(i + .5 + DV[gh.dout][0] * .3, j + .5 + DV[gh.dout][1] * .3, gh.z1 + .05); rect(c, e[0] - 2, e[1] - 2, 5, 5, '#FFFFFF'); }
+      boxes.push([m[0] - 50, m[1] - 40, 100, 90]);
+    }
+    if (S.target && S.pulse && Math.sin(t * 7) > 0) { const e = S.target, pts = [P(e.i + .04, e.j + .04, 0), P(e.i + .96, e.j + .04, 0), P(e.i + .96, e.j + .96, 0), P(e.i + .04, e.j + .96, 0)]; for (let k = 0; k < 4; k++) { const p = pts[k], q = pts[(k + 1) % 4]; pl(c, p[0], p[1], q[0], q[1], '#FFFFFF', 2); } }
+    boxes.forEach(b => { const x0 = Math.max(0, Math.round(b[0])), y0 = Math.max(0, Math.round(b[1])), x1 = Math.min(L.W, Math.round(b[0] + b[2])), y1 = Math.min(L.H, Math.round(b[1] + b[3])); if (x1 > x0 && y1 > y0) quantize(c, x1 - x0, y1 - y0, x0, y0); });
+  }
+  function tileCenter(L, i, j, z) { return proj(L)(i + .5, j + .5, z || 0); }
+
+  function loadStation(json) { return Promise.all(Object.keys(json).map(k => new Promise(res => { const im = new Image(); im.onload = () => { const cv = MK(im.width, im.height); cv.getContext('2d').drawImage(im, 0, 0); json[k].cv = cv; res(); }; im.onerror = res; im.src = json[k].src; }))).then(() => json); }
+  function setPalette(name) { R.grass = name === 'coast' ? R.cgrass : R0.grass; }
+  const api = { setPalette, loadStation, layout, draw, makeStatic, quantize, makeBgArea, cloud, makeGround, makeDecor, buildPath, posAt, tileCenter, proj, GCOL, R, TW, TH, ZH };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HBR = api;
+})(typeof window !== 'undefined' ? window : globalThis);
