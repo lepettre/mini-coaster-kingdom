@@ -14,23 +14,23 @@ const PLAN={
  'k1-5':['P2',['fam'],'', 'L',0,8,12,0],
  'k1-6':['P1',['teens'],'', 'Zickzack',0,10,13,1],
  'k2-1':['P2',['kids'],'H','Zeile',1,8,12,0],
- 'k2-2':['P3',['fam'],'V','L',1,9,13,0],
+ 'k2-2':['P2',['fam'],'V','L',1,9,13,0],
  'k2-3':['P1',['teens'],'V','Doppelteich',1,10,14,1],
  'k2-4':['P1',['kids'],'H','Zickzack',1,8,12,0],
- 'k2-5':['P2',['kids','fam'],'HV','L',1,9,13,0],
+ 'k2-5':['P3',['teens'],'H','L',1,12,16,0],
  'k2-6':['P4',['teens'],'HV','Zeile',1,11,15,1],
  'k3-1':['P3',['fam'],'H','Doppelteich',2,10,14,0],
  'k3-2':['P4',['teens'],'C','L',2,11,15,1],
  'k3-3':['P2',['fans'],'CV','Zickzack',2,11,15,1],
- 'k3-4':['P1',['kids','fam'],'HV','Zeile',2,10,14,0],
+ 'k3-4':['P1',['kids'],'H','Zeile',2,9,13,0],
  'k3-5':['P4',['fans'],'C','Doppelteich',2,12,16,1],
- 'k3-6':['P3',['teens'],'CH','L',2,12,16,1],
+ 'k3-6':['P3',['teens'],'C','L',2,12,17,1],
  'k4-1':['P2',['fam'],'W','Zeile',2,10,14,0],
  'k4-2':['P4',['teens'],'WV','Zickzack',2,12,16,1],
  'k4-3':['P3',['fans'],'CW','L',2,12,16,1],
- 'k4-4':['P1',['kids'],'WH','Doppelteich',3,10,14,0],
+ 'k4-4':['P1',['kids'],'W','Doppelteich',2,9,14,0],
  'k4-5':['P4',['fans'],'CV','Zickzack',3,13,17,1],
- 'k4-6':['P4',['fans'],'CWV','L',3,14,18,1]};
+ 'k4-6':['P4',['fans'],'CW','L',3,14,19,1]};
 
 // Walk: alle erlaubten Teile, Splash darf im Walk auf jedes freie Bodenfeld (dort entsteht danach ein Teich)
 function walk(R,base,spec){const kinds=['G','L','R','A','B'].concat(spec.loop?['P']:[],spec.must.split(''));
