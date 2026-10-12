@@ -113,7 +113,7 @@ function bigT(x,y,s,col){ctx.save();ctx.translate(x*U,y*U);ctx.scale(2,2);T(0,0,
 function init(){
   HBR.setPalette(LEVEL.theme==='coast'?'coast':'base');L=null;newRun();L=HBR.layout(run.n,run.zmax);sceneCv=document.createElement('canvas');sceneCv.width=L.W;sceneCv.height=L.H;sctx=sceneCv.getContext('2d',{willReadFrequently:true});
   const reserved=new Set();LEVEL.blocked.concat(LEVEL.deco).forEach(b=>reserved.add(b[0]+','+b[1]));run.ret.forEach(r=>reserved.add(r.i+','+r.j));for(let s=0;s<=3;s++)reserved.add((LEVEL.station[0]+s)+','+LEVEL.station[1]);
-  ground=HBR.makeGround(L,TH(),LEVEL.id,reserved,LEVEL.blocked,[[1,4],[2,4]]);decor=HBR.makeDecor(LEVEL.id,run.n,TH(),reserved);
+  (LEVEL.flags||[]).forEach(f=>reserved.add(f[0]+','+f[1]));const sg=LEVEL.station;ground=HBR.makeGround(L,TH(),LEVEL.id,reserved,LEVEL.blocked,[[sg[0],sg[1]+1],[sg[0]+1,sg[1]+1]]);decor=HBR.makeDecor(LEVEL.id,run.n,TH(),reserved);
   setup();
 }
 
@@ -154,8 +154,8 @@ function buildWin(){
   if(mode==='ride'){l1='Die Fahrt läuft.'}
   else if(mode==='result'){l1='Fahrt beendet.'}
   else if(run.stall){l1='Zu wenig Schwung!';l2='Fahrt zeigt, was passiert.'}
-  else if(HB.ready(run)){l1='Kreis geschlossen!';l2='Starte die Fahrt.'}
-  else if(!sel){l1='Wähle ein Teil.';l2='Dann BAUEN tippen.'}
+  else if(HB.ready(run)){const fj=HB.judge(run).flags;if(fj.hit<fj.n){l1='Kreis zu, aber';l2='Flagge fehlt ('+fj.hit+'/'+fj.n+')!'}else{l1='Kreis geschlossen!';l2='Starte die Fahrt.'}}
+  else if(!sel){const fj=HB.judge(run).flags;l1='Wähle ein Teil.';l2=fj.n?'Über alle Flaggen ('+fj.hit+'/'+fj.n+')':'Dann BAUEN tippen.'}
   else if(!gh.valid){l1=HB.KINDS[sel].name+': '+gh.reason+'.'}
   else if(gh.stall){l1=HB.KINDS[sel].name+': Kein Schwung!';l2='Zug bleibt hier hängen.'}
   else{l1=HB.KINDS[sel].name;const e=HB.effect(run,gh);bolt(b.x+8,sy+13,'#F2C12E');T(b.x+18,sy+12,'+'+fmt(exc(e.t)),C.txt);wave(b.x+48,sy+13,'#FF8A70');T(b.x+59,sy+12,'+'+fmt(nau(e.n)),C.txt);tacho(b.x+88,sy+13,'#2E4FA8');T(b.x+99,sy+12,(gh.z1>gh.z0?'-':gh.z1<gh.z0?'+':'~'),C.txt)}
@@ -201,7 +201,7 @@ function helpWin(){
   ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{overlay=null;saved.help=1;store.set('hb4',saved)},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function resultWin(){
-  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,'Fahrtbewertung'),x=p.x,y=p.y;
+  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung'),x=p.x,y=p.y;
   const a=exc(run.thrill),u=nau(run.nausea);
   T(x+6,y+16,'Aufregung',C.txt);T(x+76,y+16,fmt(a),C.txt);T(x+100,y+16,word(a),C.txt);
   T(x+6,y+26,'Übelkeit',C.txt);T(x+76,y+26,fmt(u),C.txt);T(x+100,y+26,word(u),C.txt);
@@ -300,7 +300,7 @@ function frame(now){
   if(!sn){bird(((lastT*14)%(Wc+60))-20,lay.areaTop+lay.areaH*.2+Math.sin(lastT)*6,Math.floor(lastT*4)&1);bird(((lastT*11+90)%(Wc+60))-20,lay.areaTop+lay.areaH*.27+Math.cos(lastT*.8)*6,Math.floor(lastT*4+1)&1)}
   const gh=sel&&mode==='build'?HB.ghost(run,sel):null,rdy=HB.ready(run);
   const key=LEVEL.id+run.track.map(p=>p.i+','+p.j+p.type+p.dout).join(';');if(key!==statKey||!stat){statKey=key;stat=HBR.makeStatic(L,{station:stSpr[LEVEL.style],run,path,decor,theme:TH(),trackCol:LEVEL.trackCol,gate:LEVEL.gate})}
-  HBR.draw(sctx,L,{run,path,ridePath,static:stat,decor,ground,theme:TH(),trackCol:LEVEL.trackCol,ghost:gh,pond:LEVEL.blocked,gate:LEVEL.gate,target:{i:LEVEL.target[0],j:LEVEL.target[1]},ready:rdy,pulse:rdy&&mode==='build',cars:cars&&cars.map(c=>Math.max(0,c)),cols:run.groups.map(g=>g.col),t:lastT});
+  HBR.draw(sctx,L,{run,path,ridePath,static:stat,decor,ground,theme:TH(),trackCol:LEVEL.trackCol,ghost:gh,pond:LEVEL.blocked,flags:LEVEL.flags,gate:LEVEL.gate,target:{i:LEVEL.target[0],j:LEVEL.target[1]},ready:rdy,pulse:rdy&&mode==='build',cars:cars&&cars.map(c=>Math.max(0,c)),cols:run.groups.map(g=>g.col),t:lastT});
   ctx.drawImage(sceneCv,Math.round(Wc/2-cam.x),Math.round(lay.areaTop+lay.areaH/2-cam.y));
   ctx.restore();
   hintSync();ui.begin();topBar();guestsWin();schwungWin();buildWin();hintBar();

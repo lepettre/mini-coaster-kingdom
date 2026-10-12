@@ -296,6 +296,14 @@
     const a = P(ti + .5, tj + .5, 0), b = P(ti + .5, tj + .5, 1.4); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 2); rect(c, b[0] - 1, b[1] - 1, 4, 3, R.yellow[3]);
     const w = Math.round(Math.sin(t * 6) * 1.5); poly(c, [[b[0] + 2, b[1] - 1], [b[0] + 16, b[1] + 3 + w], [b[0] + 2, b[1] + 8]], on ? '#5CC283' : R.yellow[3], R.base[1]);
   }
+  // Pflicht-Flagge: Mast an der hinteren Kachelecke, rot-weißer Wimpel; grün, sobald die Strecke darüber führt
+  function drawPflag(c, P, i, j, on, t) {
+    const g = P(i + .5, j + .5, 0); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + .4; rect(c, g[0] + Math.round(Math.cos(a) * 12) - 1, g[1] + Math.round(Math.sin(a) * 6) - 1, 3, 2, on ? R.green[3] : R.red[3]); }
+    const a = P(i + .2, j + .2, 0), b = P(i + .2, j + .2, 1.6); rect(c, a[0] - 2, a[1] - 1, 5, 2, R.stone[1]); pl(c, a[0], a[1], b[0], b[1], R.stone[1], 2); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 1); disc(c, b[0] + 1, b[1] - 1, 2, R.yellow[3]);
+    const w = Math.round(Math.sin(t * 5 + i + j) * 1.5), c1 = on ? R.green[2] : R.red[2], c2 = on ? R.green[4] : '#FFFFFF';
+    for (let k = 0; k < 4; k++) { const x0 = b[0] + 2 + k * 4, h = 10 - k * 2, y0 = b[1] + 1 + Math.round(w * k / 3) + k; rect(c, x0, y0, 4, h, k % 2 ? c2 : c1); }
+    rect(c, b[0] + 2, b[1] + 1, 16, 1, on ? R.green[1] : R.red[1]);
+  }
   function guest(c, x, y, col, hair, step, up, kid) {
     const k = kid ? 0 : 1;
     rect(c, x - 2, y - 11 - k, 4, 4, R.skin[2]); rect(c, x - 2, y - 12 - k, 4, 2, hair); rect(c, x - 2, y - 7 - k, 4, 4 + k, col); rect(c, x - 3, y - 7 - k, 1, 3, col); rect(c, x + 2, y - 7 - k, 1, 3, col);
@@ -365,6 +373,7 @@
     c.imageSmoothingEnabled = false; c.lineCap = 'butt'; c.lineJoin = 'miter';
     c.clearRect(0, 0, L.W, L.H); c.drawImage(S.ground, 0, 0);
     if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0); dyn.push({ d: S.target.i + S.target.j + 1.0, f: c2 => drawFlag(c2, P, S.target.i, S.target.j, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
+    (S.flags || []).forEach(f => { const on = run.track.some(p => p.i === f[0] && p.j === f[1]); dyn.push({ d: f[0] + f[1] + .45, f: c2 => drawPflag(c2, P, f[0], f[1], on, t) }); });
     (S.pond || []).forEach(q => { const p = P(q[0] + .5, q[1] + .5, 0), ph = Math.floor(t * 2.5 + q[0] * 2 + q[1]) % 4; dyn.push({ d: q[0] + q[1] + .3, f: c2 => { rect(c2, p[0] - 9 + ph * 4, p[1] - 3 + (ph & 1), 3, 1, '#FFFFFF'); rect(c2, p[0] + 6 - ph * 3, p[1] + 1, 3, 1, R.water[4]); } }); });
     if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
     const qy = sy + 1.5;

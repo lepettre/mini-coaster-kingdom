@@ -13,7 +13,8 @@ Isometrisches Pixel-Art-Puzzle (Stil RollerCoaster Tycoon), iPhone-Hochformat, 2
 | `hb4/levels24.json`, `pool.json`, `level1.json` | Leveldaten, 54 Zufalls-Rückfallpuzzles |
 | `hb4/station_*.json` | fertige Sprites der 4 Landschaften |
 | `hb4/build.py` | setzt alles zu `hb4/dist/mini-coaster-kingdom.html` zusammen |
-| `hb4/test*.js`, `stalltest.js` | Browser-Tests (Puppeteer) |
+| `hb4/test*.js`, `stalltest.js`, `phystest.js` | Tests (Browser per Puppeteer; `phystest.js` reines Node) |
+| `hb4/varianz.js`, `varianz_test.json`, `vtest.js` | Varianz-Testvarianten, Vorschau mit `python3 build.py varianz` |
 | `hb5/` | Sprite-Generatoren (unvollständig, siehe CLAUDE.md) |
 | `icons/` | Icon-Skript und Original-PNG |
 
@@ -21,8 +22,9 @@ Isometrisches Pixel-Art-Puzzle (Stil RollerCoaster Tycoon), iPhone-Hochformat, 2
 ```
 npm install
 cd hb4
-python3 build.py        # erzeugt dist/mini-coaster-kingdom.html (153 KB)
-node test3.js           # 6 Level per Tipp durchspielen
+python3 build.py        # erzeugt dist/mini-coaster-kingdom.html (156 KB)
+node phystest.js        # Physik + Lösbarkeit aller Level/Pool-Rätsel (ohne Browser)
+node test3.js           # alle 24 Level im Browser durchspielen
 node stalltest.js       # Looping ohne Schwung
 ```
 Zum Ansehen `hb4/dist/mini-coaster-kingdom.html` im Browser öffnen.

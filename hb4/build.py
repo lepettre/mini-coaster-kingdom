@@ -1,7 +1,9 @@
-import json,os,base64
+import json,os,sys,base64
+# python3 build.py varianz -> Vorschau mit den Testvarianten aus varianz_test.json
+VZ=len(sys.argv)>1 and sys.argv[1]=='varianz'
 t=open('template.html').read()
 t=t.replace('/*LOGIC*/',open('logic.js').read()).replace('/*GENB*/',open('genb.js').read()).replace('/*RENDER*/',open('render.js').read()).replace('/*UI*/',open('ui.js').read())
-lv=json.load(open('levels24.json'))
+lv=json.load(open('varianz_test.json' if VZ else 'levels24.json'))
 t=t.replace('/*LEVELS*/[]',json.dumps(lv,separators=(',',':'),ensure_ascii=False))
 pool=json.load(open('pool.json')) if os.path.exists('pool.json') else []
 t=t.replace('/*POOL*/[]',json.dumps(pool,separators=(',',':')))
@@ -13,5 +15,5 @@ icon=('<link rel="apple-touch-icon" href="data:image/png;base64,%s">\n<link rel=
  '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="apple-mobile-web-app-title" content="Mini Coaster Kingdom">')%(b64('icon-180.png'),b64('icon-180.png'),base64.b64encode(json.dumps(man,ensure_ascii=False).encode()).decode())
 t=t.replace('<!--ICON-->',icon)
 os.makedirs('dist',exist_ok=True)
-open('dist/mini-coaster-kingdom.html','w').write(t)
+open('dist/varianz-vorschau.html' if VZ else 'dist/mini-coaster-kingdom.html','w').write(t)
 print(len(t)//1024,'KB',len(lv),'Level',len(pool),'Pool')

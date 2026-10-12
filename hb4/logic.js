@@ -29,7 +29,7 @@
     for (let s = 1; s <= lift; s++) track.push({ i: st[0] + s, j: st[1], z0: s - 1, z1: s, din: 0, dout: 0, type: 'T' });
     const ret = level.ret.map(r => ({ i: r[0], j: r[1], z0: 0, z1: 0, din: r[2], dout: r[3], type: r[2] === r[3] ? 'G' : 'K', ret: true }));
     const blocked = level.blocked.map(b => ({ i: b[0], j: b[1] })).concat(level.deco.map(b => ({ i: b[0], j: b[1] })), ret.map(r => ({ i: r.i, j: r.j })));
-    return { level, n, lift, zmax: D.zmax, groups: level.groups.map(id => GROUPS[id]), inv: Object.assign({}, level.inv), blocked, ret, exit: { i: ret[0].i, j: ret[0].j, dir: ret[0].din }, track, hist: [],
+    return { level, n, lift, zmax: D.zmax, groups: level.groups.map(id => GROUPS[id]), inv: Object.assign({}, level.inv), blocked, ret, exit: { i: ret[0].i, j: ret[0].j, dir: ret[0].din }, track, hist: [], flags: (level.flags || []).map(f => ({ i: f[0], j: f[1] })),
       head: { i: st[0] + lift, j: st[1], z: lift, dir: 0, k: D.k0, turn: 0, last: null }, placed: 0, thrill: 0, nausea: 0, stall: null };
   }
   function occupied(run, i, j) { return run.track.some(p => p.i === i && p.j === j) || run.blocked.some(p => p.i === i && p.j === j); }
@@ -77,6 +77,8 @@
     run.track.pop(); if (run.stall && run.stall.idx >= run.track.length) run.stall = null; run.head = h.head; run.thrill = h.thrill; run.nausea = h.nausea; run.inv[h.kind]++; run.placed--; return true;
   }
   function ready(run) { const h = run.head; return h.i + DV[h.dir][0] === run.exit.i && h.j + DV[h.dir][1] === run.exit.j && h.dir === run.exit.dir && h.z === 0; }
+  // Pflicht-Flaggen: jede Flaggen-Kachel muss von der gebauten Strecke befahren werden
+  function flagsHit(run) { return (run.flags || []).filter(f => run.track.some(p => p.i === f.i && p.j === f.j)).length; }
   function judge(run) {
     const T = run.thrill, Nn = run.nausea;
     const res = run.groups.map(gr => {
@@ -86,7 +88,8 @@
       const mid = T >= lo + (hi - lo) * .2 && T <= hi - (hi - lo) * .2 && Nn <= gr.n * .7 && why === '';
       return { id: gr.id, name: gr.name, col: gr.col, ok: why === '', mid: gr.t[1] >= 99 ? (why === '' && T >= lo * 1.1 && Nn <= gr.n * .7) : mid, why };
     });
-    return { res, ready: ready(run), success: ready(run) && res.every(r => r.ok) && !run.stall, centered: res.every(r => r.mid) };
+    const fl = (run.flags || []).length, fh = flagsHit(run);
+    return { res, ready: ready(run), success: ready(run) && res.every(r => r.ok) && !run.stall && fh === fl, centered: res.every(r => r.mid), flags: { n: fl, hit: fh } };
   }
   function stars(run, par) { const j = judge(run); if (!j.success) return 0; let s = 1; if (j.centered) s = 2; if (j.centered && run.placed <= par) s = 3; return s; }
   function clone(r) { return Object.assign({}, r, { track: r.track.slice(), head: Object.assign({}, r.head), inv: Object.assign({}, r.inv), hist: r.hist.slice() }); }
@@ -125,6 +128,6 @@
     while (c.hist.length && b < 14) { undo(c); b++; const q = solveFrom(c, Math.min(budget, 20000)); if (q.found) return { found: false, dead: true, back: b }; if (q.out) return { found: false, dead: true, back: -1 }; }
     return { found: false, dead: true, back: -1 };
   }
-  const api = { solveFrom, hint, clone, DV, GROUPS, KINDS, ORDER, D, mulberry32, hash, newRun, ghost, effect, place, undo, ready, judge, stars, solve };
+  const api = { flagsHit, solveFrom, hint, clone, DV, GROUPS, KINDS, ORDER, D, mulberry32, hash, newRun, ghost, effect, place, undo, ready, judge, stars, solve };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HB = api;
 })(typeof window !== 'undefined' ? window : globalThis);
