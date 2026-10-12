@@ -19,7 +19,7 @@
   };
   const ORDER = ['G', 'L', 'R', 'A', 'B', 'P'];
   const FRIC = { G: .07, K: .09, A: .07, B: .07, L: .45, C: .25 };
-  const D = { n: 8, lift: 3, zmax: 4, k0: 1.7, sr: 3, loopK: 2.6 };
+  const D = { n: 8, lift: 3, zmax: 4, k0: 1.0, sr: 3, loopK: 2.6 };
 
   function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -68,7 +68,7 @@
     const e = effect(run, g);
     run.hist.push({ head: Object.assign({}, run.head), thrill: run.thrill, nausea: run.nausea, kind: g.kind });
     run.inv[g.kind]--; run.thrill += e.t; run.nausea += e.n;
-    run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n });
+    run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut: Math.max(g.kExit, .05) });
     if (g.stall) run.stall = { idx: run.track.length - 1, f: g.stallF, kind: g.kind };
     run.head = { i: g.i, j: g.j, z: g.z1, dir: g.dout, k: Math.max(g.kExit, .05), turn: g.type === 'K' ? g.turn : 0, last: g.type }; run.placed++;
   }

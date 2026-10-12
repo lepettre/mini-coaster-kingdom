@@ -15,7 +15,7 @@ Quellstand = veröffentlichte Version (Tipp-Knopf, `window.__hb`-Testhook, Hinwe
 
 ## Befehle
 - Einmalig: `npm install`
-- Bauen: `cd hb4 && python3 build.py` → `hb4/dist/haengebahn.html`
+- Bauen: `cd hb4 && python3 build.py` → `hb4/dist/mini-coaster-kingdom.html`
 - Tests (nach dem Bauen, in `hb4/`): `node test3.js` (6 Level per Tipp-Taps durchspielen), `node stalltest.js` (Looping ohne Schwung). Beide laufen. Screenshots landen in `hb4/out/`.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
@@ -32,7 +32,7 @@ Nur besprochen, nicht beschlossen: Kreuzungen, Korkenzieher C (in `logic.js` unt
 Weitere offene Punkte: Tagesrätsel; vollständiger Durchspieltest aller 24 Level (bisher 6); Senioren als Gäste sind mit festem Aufbau nicht lösbar.
 
 ## Veröffentlichen
-Die Datei `hb4/dist/haengebahn.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
+Die Datei `hb4/dist/mini-coaster-kingdom.html` ersetzt den Inhalt des claude.ai-Artifacts (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts); das geht nur in claude.ai, nicht aus Claude Code. Alternative: GitHub Pages.
 
 ## Looping-Entscheidungen (nicht rückgängig machen)
 Tropfenform, seitlicher Versatz 0,35, Folgeteil führt Spur zurück, Physik: Looping braucht Schwung 2,6; ohne Schwung rollt der Zug zurück, Fehlermeldung, Strecke weg. Stilwahl je Landschaft: Wiese Chalet (B1), Winter Märchenburg (A2), Wüste Westernstadt (D1), Küste Villa (C1). Icon C (Abendburg, Looping ohne Wagen, durchgehende Strecke).

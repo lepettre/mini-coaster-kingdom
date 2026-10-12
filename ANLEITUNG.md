@@ -11,12 +11,12 @@
 - **Eine Sitzung pro Funktion.** Neue Funktion = neue Sitzung; das hält den Verbrauch niedrig.
 - **Erst Vorschlag, dann Auftrag.** Claude Code zeigt, was es ändern würde; du gibst frei, zum Beispiel „Varianz go". So steht es in `CLAUDE.md`.
 - **Nach jeder Änderung** muss gebaut und getestet werden; Claude Code meldet erst danach.
-- **Ergebnis ansehen:** `hb4/dist/haengebahn.html` im Browser öffnen oder per GitHub Pages hosten.
+- **Ergebnis ansehen:** `hb4/dist/mini-coaster-kingdom.html` im Browser öffnen oder per GitHub Pages hosten.
 - **Committen** nach jeder abgeschlossenen Funktion.
 - **`CLAUDE.md` pflegen:** Am Ende jeder Funktion Stand und „Geplant" aktualisieren lassen. Das ist das Gedächtnis zwischen den Sitzungen.
 
 ## 3. Veröffentlichen
-Das claude.ai-Artifact (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts) lässt sich nur aus claude.ai aktualisieren: einen Chat öffnen, `hb4/dist/haengebahn.html` anhängen und bitten, das Artifact damit zu ersetzen. Alternative ohne claude.ai: die Datei per GitHub Pages hosten.
+Das claude.ai-Artifact (https://claude.ai/artifact/LT6HNUnGZuxQj8vzQJo9Ts) lässt sich nur aus claude.ai aktualisieren: einen Chat öffnen, `hb4/dist/mini-coaster-kingdom.html` anhängen und bitten, das Artifact damit zu ersetzen. Alternative ohne claude.ai: die Datei per GitHub Pages hosten.
 
 ## 4. Nächste sinnvolle Schritte (laut CLAUDE.md, nichts davon ist gebaut)
 1. Varianz-Paket mit 2–3 Testvarianten zur Durchsicht (Plan steht in `CLAUDE.md`).

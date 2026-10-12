@@ -4,7 +4,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 (async()=>{const browser=await puppeteer.launch({args:[...chromium.args,'--no-sandbox'],executablePath:await chromium.executablePath(),headless:'shell'});
  const shots=[];
  for(let din=0;din<4;din++){const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:3});
-  await page.goto('file://'+require('path').resolve('dist/haengebahn.html'));await sleep(1200);await page.evaluate(()=>window.__hb.close());
+  await page.goto('file://'+require('path').resolve('dist/mini-coaster-kingdom.html'));await sleep(1200);await page.evaluate(()=>window.__hb.close());
   await page.evaluate(d=>window.__hb.dbgLoop(5,5,d),din);
   for(const f of [.5,.85]){await page.evaluate(f=>window.__hb.dbgAt(f),f);await sleep(1400);shots.push(await page.screenshot({clip:{x:105,y:215,width:180,height:200}}));}
   await page.close()}

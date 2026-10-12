@@ -12,7 +12,7 @@ Isometrisches Pixel-Art-Puzzle (Stil RollerCoaster Tycoon), iPhone-Hochformat, 2
 | `hb4/gen2/3/4/5.js`, `layouts.js` | Erzeugen von Leveln und Vorrat (Node, einmalig) |
 | `hb4/levels24.json`, `pool.json`, `level1.json` | Leveldaten, 54 Zufalls-Rückfallpuzzles |
 | `hb4/station_*.json` | fertige Sprites der 4 Landschaften |
-| `hb4/build.py` | setzt alles zu `hb4/dist/haengebahn.html` zusammen |
+| `hb4/build.py` | setzt alles zu `hb4/dist/mini-coaster-kingdom.html` zusammen |
 | `hb4/test*.js`, `stalltest.js` | Browser-Tests (Puppeteer) |
 | `hb5/` | Sprite-Generatoren (unvollständig, siehe CLAUDE.md) |
 | `icons/` | Icon-Skript und Original-PNG |
@@ -21,11 +21,11 @@ Isometrisches Pixel-Art-Puzzle (Stil RollerCoaster Tycoon), iPhone-Hochformat, 2
 ```
 npm install
 cd hb4
-python3 build.py        # erzeugt dist/haengebahn.html (153 KB)
+python3 build.py        # erzeugt dist/mini-coaster-kingdom.html (153 KB)
 node test3.js           # 6 Level per Tipp durchspielen
 node stalltest.js       # Looping ohne Schwung
 ```
-Zum Ansehen `hb4/dist/haengebahn.html` im Browser öffnen.
+Zum Ansehen `hb4/dist/mini-coaster-kingdom.html` im Browser öffnen.
 
 ## Wie das Bauen funktioniert
 `build.py` ersetzt in `template.html` die Platzhalter `/*LOGIC*/`, `/*GENB*/`, `/*RENDER*/`, `/*UI*/`, `/*LEVELS*/`, `/*POOL*/`, `/*STATIONS*/` und `<!--ICON-->` durch die Dateiinhalte. Spiel-Code gehört deshalb in `logic.js`, `render.js` oder `ui.js`, nicht in die fertige HTML. Eigener Code des Gerüsts (Schleife, Tipp-Knopf, Eingabe) steht am Ende von `template.html`.

@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
   const U = 2; // 1 UI-Pixel = 2 Bildschirmpunkte
-  const C = { ink: '#141B2A', face: '#B3C0D3', hi: '#F2F6FB', lo: '#4B5B74', title: '#2E4FA8', title2: '#213C86', inset: '#8A9BB6', btn: '#C9D3E2', btnP: '#9FB0C8', yel: '#F2C12E', red: '#C22A22', grn: '#3B8528', org: '#E07A1F', dis: '#7C8DA8', white: '#FFFFFF' };
+  // Fensterfarben: dunkles, mattes Rot wie in RCT2; Text darauf hell (txt), ink bleibt dunkel für Rahmen und Text auf Gelb
+  const C = { ink: '#1A0A08', txt: '#F4E4CC', face: '#7A2A23', hi: '#A9554A', lo: '#3F1310', title: '#4E1611', title2: '#3A0F0B', inset: '#55201B', btn: '#8E372E', btnP: '#6A251F', yel: '#F2C12E', red: '#C22A22', grn: '#3B8528', org: '#E07A1F', dis: '#B98A80', white: '#FFFFFF' };
 
   // ---- 5x7 Pixelschrift: [y0, Zeilen] ----
   const F = {};
@@ -36,7 +37,7 @@
     const fr = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x * U, y * U, w * U, h * U); };
     const px = (x, y, col) => fr(x, y, 1, 1, col);
     const line = (x0, y0, x1, y1, col) => { let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1, e = dx + dy, g = 0; for (;;) { px(x0, y0, col); if ((x0 === x1 && y0 === y1) || g++ > 300) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } } };
-    const text = (x, y, str, col, outline) => { const t = textCanvas(str, col || C.ink, outline); ctx.drawImage(t, (x - (outline ? 1 : 0)) * U, (y - (outline ? 1 : 0)) * U); };
+    const text = (x, y, str, col, outline) => { const t = textCanvas(str, col || C.txt, outline); ctx.drawImage(t, (x - (outline ? 1 : 0)) * U, (y - (outline ? 1 : 0)) * U); };
     const bevel = (x, y, w, h, face, hi, lo) => { fr(x, y, w, h, C.ink); fr(x + 1, y + 1, w - 2, h - 2, face); fr(x + 1, y + 1, w - 2, 1, hi); fr(x + 1, y + 1, 1, h - 2, hi); fr(x + 1, y + h - 2, w - 2, 1, lo); fr(x + w - 2, y + 1, 1, h - 2, lo); };
     const win = (x, y, w, h, title) => { bevel(x, y, w, h, C.face, C.hi, C.lo); if (title) { fr(x + 2, y + 2, w - 4, 10, C.title); for (let i = 0; i < w - 4; i += 2) px(x + 2 + i, y + 11, C.title2), px(x + 3 + i, y + 10, C.title2); text(x + 4, y + 3, title, C.white); } };
     const inset = (x, y, w, h, col) => bevel(x, y, w, h, col || C.inset, C.lo, C.hi);
