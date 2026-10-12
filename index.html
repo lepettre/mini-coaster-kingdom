@@ -948,15 +948,22 @@ function rideSpeed(s){const q=HBR.posAt(ridePath,s),tr=run.track[q.pi];let v;
   if(tr&&tr.kIn!=null){const sp=rideSpan[q.pi],f=sp&&sp[1]>sp[0]?Math.max(0,Math.min(1,(s-sp[0])/(sp[1]-sp[0]))):0;v=Math.sqrt(Math.max(.05,tr.kIn+(tr.kOut-tr.kIn)*f))}
   else if(tr&&tr.type==='T')return 2.0;else v=q.pi>=run.track.length?1.4:1.1;
   return (.8+1.5*v)*(1-.5*(q.lh||0))}
+// Zurückrollen nach Energie wie bei der Fahrt: Tempo aus der Höhe unter dem Haltepunkt (gleiche Skala wie rideSpeed),
+// Reibung zehrt die Energie auf, der Zug pendelt im Tal aus. Am Stationsende hält ihn die Rücklaufsperre.
+function swingStart(){const zs=HBR.posAt(ridePath,stallS).z;let lo=zs;for(let s=ridePath.startS;s<stallS;s+=.05)lo=Math.min(lo,HBR.posAt(ridePath,s).z);return{v:0,t:0,s:stallS,dir:-1,E:zs,lo}}
+function swingStep(dt){const sw=swing,n=6,h=dt/n;sw.t+=dt;for(let k=0;k<n;k++){const q=HBR.posAt(ridePath,sw.s),e=sw.E-q.z;let v=1.5*Math.sqrt(Math.max(0,e));
+  if(e<=.004&&sw.t>.15){sw.dir=-sw.dir;sw.E=q.z+.004}v=Math.max(v,.06);sw.s+=sw.dir*v*h;sw.E-=.3*v*h;sw.v=sw.dir*v;
+  if(sw.s<ridePath.startS){sw.s=ridePath.startS;sw.dir=1;sw.E=Math.min(sw.E,q.z+(sw.E-q.z)*.3)}if(sw.s>stallS){sw.s=stallS;sw.dir=-1}}
+  if(sw.t>7||(sw.t>2&&sw.E-sw.lo<.05))sw.end=true}
 function frame(now){
   requestAnimationFrame(frame);
   const minDt=mode==='ride'?40:75;if(now-lastT*1000<minDt)return;const dt=Math.min(.1,(now-lastT*1000)/1000);lastT=now/1000;
   if(mode==='ride'&&cars){
     if(stallS!==null){
-      if(!swing){rideS+=dt*rideSpeed(rideS)*Math.min(1,.12+(stallS-rideS)/.9);if(rideS>=stallS-.015){rideS=stallS;swing={v:0,t:0,s:stallS}}}
-      else{swing.t+=dt;const n=4,h=dt/n;for(let k=0;k<n;k++){const qq=HBR.posAt(ridePath,swing.s),sl=qq.dz/(Math.hypot(qq.dx,qq.dy,.6*qq.dz)||1);swing.v+=(-9*sl-.55*swing.v)*h;swing.s+=swing.v*h;if(swing.s<ridePath.startS){swing.s=ridePath.startS;swing.v=Math.abs(swing.v)*.3}if(swing.s>stallS){swing.s=stallS;swing.v=-Math.abs(swing.v)*.3}}rideS=swing.s}
+      if(!swing){rideS+=dt*rideSpeed(rideS)*Math.min(1,.12+(stallS-rideS)/.9);if(rideS>=stallS-.015){rideS=stallS;swing=swingStart()}}
+      else{swingStep(dt);rideS=swing.s}
       cars=[rideS,rideS-.38,rideS-.76];
-      if(swing&&(swing.t>5.5||(swing.t>2.2&&Math.abs(swing.v)<.05))){cars=null;stallInfo={kind:run.stall.kind};swing=null;stallS=null;newRun();overlay='stall'}
+      if(swing&&swing.end){cars=null;stallInfo={kind:run.stall.kind};swing=null;stallS=null;newRun();overlay='stall'}
     } else {
     if(!window.__frz)rideS+=dt*rideSpeed(rideS);
     cars=[rideS,rideS-.38,rideS-.76];const pi=HBR.posAt(ridePath,rideS).pi;if(pi>maxPi&&pi<run.track.length)maxPi=pi;let t=0,n=0;for(let k=0;k<maxPi&&k<run.track.length;k++){const p=run.track[k];if(p.t){t+=p.t;n+=p.n}}

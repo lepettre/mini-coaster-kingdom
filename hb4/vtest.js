@@ -9,7 +9,7 @@ const noFlag=l=>{if(!(l.flags||[]).length)return null;const r=HB.solve(Object.as
 (async()=>{const browser=await puppeteer.launch({args:[...chromium.args,'--no-sandbox'],executablePath:await chromium.executablePath(),headless:'shell'});
  const errs=[],res=[];
  const play=async(i,seq,shot)=>{const page=await browser.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:1});page.on('pageerror',e=>errs.push(e.message));
-  await page.goto('file://'+require('path').resolve('dist/varianz-vorschau.html'));await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
+  await page.goto('file://'+require('path').resolve('../vorschau.html'));await sleep(1200);const ev=(f,...a)=>page.evaluate(f,...a);
   await ev(i=>{window.__hb.lvl(i);window.__hb.close()},i);await sleep(500);if(shot)await page.screenshot({path:'out/'+shot+'_leer.png'});
   await ev(q=>window.__hb.place(q),seq);await sleep(400);if(shot)await page.screenshot({path:'out/'+shot+'_strecke.png'});
   await ev(()=>window.__hb.go());let ok=false;for(let k=0;k<200;k++){await sleep(300);if(await ev(()=>window.__hb.get().overlay)==='result'){ok=true;break}}

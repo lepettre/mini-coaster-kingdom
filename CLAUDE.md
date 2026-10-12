@@ -21,7 +21,7 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 - Einmalig: `npm install`
 - Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
 - Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus). Screenshots landen in `hb4/out/`.
-- Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `dist/varianz-vorschau.html`; `node vtest.js` spielt sie durch.
+- Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `vorschau.html` im Projektordner (V1–V3 spielbar, wird mit committet); `node vtest.js` spielt sie durch.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
 ## Bekannte Lücken
