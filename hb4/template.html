@@ -37,6 +37,8 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{willReadFrequentl
 const U=HBUI.U,ui=HBUI.make(ctx),C=HBUI.C,T=ui.text;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let saved=store.get('hb4',{s:{},help:0,cur:0,rz:0});if(!saved.s)saved.s={};
+// Spielstand-Version 2: Level ab 1-4 sind neu, deshalb Sterne einmalig zurücksetzen; seen = schon erklärte Elemente
+if((saved.v||0)<2){saved.s={};saved.cur=0;saved.v=2;saved.seen=[];store.set('hb4',saved)}if(!saved.seen)saved.seen=[];
 HBG.init(LEVELS[0]);
 let LEVEL=LEVELS[Math.min(saved.cur||0,LEVELS.length-1)],stSpr={};const TH=()=>LEVEL.theme==='coast'?'meadow':LEVEL.theme,lvIdx=()=>LEVELS.indexOf(LEVEL),stars_=id=>saved.s[id]||0,unlocked=i=>i===0||stars_(LEVELS[i-1].id)>=1;
 const scr=document.createElement('canvas');scr.width=4;scr.height=4;{const g=scr.getContext('2d');g.fillStyle='#1E0D0B';g.fillRect(0,0,2,2);g.fillRect(2,2,2,2)}const scrim=ctx.createPattern(scr,'repeat');
@@ -94,17 +96,20 @@ function focus(){
 }
 function clampCam(){const mx=Wc/2-70,Mx=L.W-Wc/2+70,my=lay.areaH/2-50,My=L.H-lay.areaH/2+50;cam.x=Math.max(Math.min(mx,Mx),Math.min(Math.max(mx,Mx),cam.x));cam.y=Math.max(Math.min(my,My),Math.min(Math.max(my,My),cam.y))}
 function newRun(){hintK=null;hintSeq=null;run=HB.newRun(LEVEL);path=HBR.buildPath(run,false);sel=null;mode='build';cars=null;partial=null;result=null;camManual=false;if(L)cam=focus()}
-function loadLevel(i){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';LEVEL=LEVELS[i];saved.cur=i;store.set('hb4',saved);stat=null;statKey='';overlay=saved.help?null:'help';inGame=true;init()}
+function loadLevel(i){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';LEVEL=LEVELS[i];saved.cur=i;store.set('hb4',saved);stat=null;statKey='';overlay=saved.help?(neuList().length?'neu':null):'help';inGame=true;init()}
 const STY={meadow:'B1',winter:'A2',desert:'D1',coast:'C1'},TCOL={meadow:['red','blue','green'],winter:['blue','red'],desert:['orange','red'],coast:['green','blue']},THEMES=['meadow','winter','desert','coast'],DIFFN=['Leicht','Mittel','Schwer'];
-const SPECS=[{min:8,max:12,groups:[['kids'],['fam']],loop:'no',extras:1,pond:[4,6],maxSol:30},{min:10,max:14,groups:[['fam'],['teens']],loop:'allow',extras:1,pond:[4,6],maxSol:12},{min:12,max:17,groups:[['teens'],['fans']],loop:'allow',extras:2,pond:[4,6],maxSol:6,budget:15000}];
+const SPECS=[{min:8,max:12,groups:[['kids'],['fam']],loop:'no',extras:1,pond:[4,6],maxSol:100,flags:0},{min:10,max:14,groups:[['fam'],['teens']],loop:'allow',extras:1,pond:[4,6],maxSol:60,flags:1},{min:12,max:17,groups:[['teens'],['fans']],loop:'allow',extras:2,pond:[4,6],maxSol:30,budget:15000,flags:2}];
+// Zufall nutzt alles, was in freigespielten Leveln vorkommt: Teile, Grundrisse, Pflicht-Flaggen
+function randOpts(){const U=LEVELS.filter((l,i)=>unlocked(i)),seen=new Set(),bases=[];U.forEach(l=>{const k=l.n+'|'+l.station+'|'+JSON.stringify(l.ret);if(!seen.has(k)){seen.add(k);bases.push(l)}});
+  return{bases,kinds:[...new Set(['G','L','R','A','B'].concat(...U.map(l=>Object.keys(l.inv))))],flags:Math.max(0,...U.map(l=>(l.flags||[]).length))}}
 const TCODE={m:'meadow',w:'winter',d:'desert',k:'coast'};
 function randLevel(base,diff,seed){const th=THEMES[(seed>>>3)%4];return Object.assign({},base,{id:'z'+seed,name:'Zufall '+DIFFN[diff],theme:th,style:STY[th],trackCol:TCOL[th][seed%TCOL[th].length],chapter:0,rnd:true,diff})}
 function expandPool(e,seed){const b=LEVELS[0];return randLevel(Object.assign({},b,{blocked:e.b,inv:e.i,groups:e.g,par:e.p}),e.d,seed)}
-function playRandom(l){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';inGame=true;LEVEL=l;stat=null;statKey='';busyMsg='';overlay=null;init()}
+function playRandom(l){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';inGame=true;LEVEL=l;stat=null;statKey='';busyMsg='';overlay=neuList().length?'neu':null;init()}
 function startRandom(diff){
   lastDiff=diff;overlay='busy';busyMsg='Erzeuge Rätsel...';const t0=performance.now();
   const step=()=>{
-    const seed=(Math.random()*1e9)|0;let l=null;try{l=HBG.make(SPECS[diff],seed,2)}catch(e){l=null}
+    const seed=(Math.random()*1e9)|0;let l=null;try{l=HBG.make(SPECS[diff],seed,2,randOpts())}catch(e){l=null}
     if(l){playRandom(randLevel(l,diff,seed));return}
     if(performance.now()-t0<4500){setTimeout(step,0);return}
     const cand=POOL.filter(e=>e.d===diff);const e=(cand.length?cand:POOL)[Math.floor(Math.random()*(cand.length||POOL.length))];
@@ -198,12 +203,36 @@ function topBar(){
   ui.btn('help',Wu-17,2,13,12,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+4,y2+2,'?',C.txt)}});
 }
 function dialogBase(w,h,title){const x=Math.floor((Wu-w)/2),y=Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
+// ---------- Erklärungen: neue Elemente beim ersten Auftreten, Übersicht in der Hilfe ----------
+const INFO={G:['Gerade','Kostet kaum Schwung.'],L:['Kurve','Etwas Aufregung.'],A:['Anstieg','Geht nur mit Schwung.'],B:['Abfahrt','Gibt Schwung.'],
+ P:['Looping','Braucht Schwung 2,6.','Viel Aufregung.'],H:['Bremse','Senkt den Schwung,','beruhigt die Fahrt.'],V:['Booster','Gibt Schwung, auch','auf flacher Strecke.'],
+ W:['Splash','Nur durch einen Teich,','am Boden. Bremst stark.'],C:['Korkenzieher','Zwei Felder, kopfüber.','Braucht Schwung 2,0.'],
+ F:['Pflicht-Flagge','Die Strecke muss über','jede rot-weiße Flagge.'],Z:['Ziel-Tor','Hier endet die Strecke,','unten am Boden.']};
+const KURZ={Z:'Hier endet die Strecke.',F:'Strecke muss drüber.',G:'Kostet kaum Schwung.',L:'Etwas Aufregung.',A:'Geht nur mit Schwung.',B:'Gibt Schwung.',P:'Braucht Schwung 2,6.',H:'Senkt den Schwung.',V:'Gibt Schwung, auch flach.',W:'Nur durch einen Teich.',C:'2 Felder, kopfüber.'};
+function infoIcon(k,x,y){
+  if(k==='F'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+5,y+3,2,16,'#5A5F6B');ui.fr(x+4,y+2,3,2,'#F2C12E');for(let q=0;q<4;q++)ui.fr(x+7+q*3,y+3+q,3,8-2*q,q%2?'#FFFFFF':'#E04A3C');ui.fr(x+2,y+17,3,2,'#E04A3C');ui.fr(x+14,y+16,3,2,'#E04A3C');return}
+  if(k==='Z'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+2,y+3,2,17,'#5A5F6B');ui.fr(x+16,y+3,2,17,'#5A5F6B');for(let q=0;q<6;q++)for(let r=0;r<2;r++)ui.fr(x+4+q*2,y+4+r*2,2,2,(q+r)%2?'#FFFFFF':'#1B2030');ui.fr(x+8,y+12,4,8,'#D8312B');return}
+  pieceIcon(k==='R'?'L':k,x,y)}
+const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).filter(k=>!saved.seen.includes(k)):[];
+function afterHelp(){overlay=neuList().length?'neu':null}
+function neuWin(){
+  const L2=neuList().slice(0,3),w=Math.min(176,Wu-10),h=22+L2.length*34+20,p=dialogBase(w,h,'Neu in diesem Level'),x=p.x,y=p.y;
+  L2.forEach((k,n)=>{const yy=y+16+n*34;infoIcon(k,x+6,yy+2);T(x+31,yy,INFO[k][0],C.yel);T(x+31,yy+10,INFO[k][1],C.txt);if(INFO[k][2])T(x+31,yy+19,INFO[k][2],C.txt)});
+  ui.btn('nok',x+w-44,y+h-20,38,15,{fn:()=>{L2.forEach(k=>saved.seen.push(k));store.set('hb4',saved);overlay=neuList().length?'neu':null},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
+}
+function teileWin(){
+  const ks=['Z','F','G','L','A','B','P','H','V','W','C'],w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
+  ks.forEach((k,n)=>{const yy=y+15+n*22;infoIcon(k,x+5,yy);T(x+29,yy+1,INFO[k][0],C.yel);T(x+29,yy+11,KURZ[k],C.txt)});
+  ui.btn('tok',x+w-44,y+h-19,38,15,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});
+}
 function helpWin(){
-  const w=Math.min(176,Wu-10),h=96,p=dialogBase(w,h,"So geht's"),x=p.x,y=p.y;
+  const w=Math.min(176,Wu-10),h=134,p=dialogBase(w,h,"So geht's"),x=p.x,y=p.y;
   pieceIcon('R',x+6,y+16);T(x+31,y+20,'1  Teil wählen',C.txt);
   ui.fr(x+6,y+40,20,20,C.lo);ui.fr(x+7,y+41,18,18,'#5DAE34');ui.fr(x+14,y+45,3,10,C.txt);ui.fr(x+10,y+49,11,3,C.txt);T(x+31,y+44,'2  BAUEN tippen',C.txt);
-  ui.fr(x+6,y+64,20,20,'#F2C12E');ui.fr(x+8,y+66,16,16,'#FFFFFF');ui.fr(x+12,y+70,8,8,'#3B8528');T(x+31,y+64,'3  Kreis',C.txt);T(x+31,y+72,'schließen',C.txt);
-  ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{overlay=null;saved.help=1;store.set('hb4',saved)},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
+  infoIcon('Z',x+6,y+64);T(x+31,y+64,'3  Bis zum Ziel-Tor,',C.txt);T(x+31,y+73,'dann FAHRT tippen',C.txt);
+  infoIcon('F',x+6,y+88);T(x+31,y+88,'Rot-weiße Flaggen:',C.txt);T(x+31,y+97,'Strecke muss drüber',C.txt);
+  ui.btn('hteile',x+6,y+h-20,72,15,{fn:()=>{overlay='teile'},draw:(x2,y2)=>{T(x2+5,y2+4,'Alle Teile',C.txt)}});
+  ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{saved.help=1;store.set('hb4',saved);afterHelp()},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function resultWin(){
   const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung'),x=p.x,y=p.y;
@@ -318,7 +347,7 @@ function frame(now){
   ctx.drawImage(sceneCv,Math.round(Wc/2-cam.x),Math.round(lay.areaTop+lay.areaH/2-cam.y));
   ctx.restore();
   hintSync();ui.begin();topBar();guestsWin();schwungWin();buildWin();hintBar();
-  if(overlay){ui.hits.length=0;if(overlay==='menu')menuWin();else if(overlay==='rand'||overlay==='busy'||overlay==='levels'){ctx.globalAlpha=.55;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);ctx.globalAlpha=1;if(overlay==='rand')randWin();else if(overlay==='busy')busyWin();else levelsWin()}else if(overlay==='help')helpWin();else if(overlay==='result'&&result)resultWin();else if(overlay==='stall')stallWin()}
+  if(overlay){ui.hits.length=0;if(overlay==='menu')menuWin();else if(overlay==='rand'||overlay==='busy'||overlay==='levels'){ctx.globalAlpha=.55;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);ctx.globalAlpha=1;if(overlay==='rand')randWin();else if(overlay==='busy')busyWin();else levelsWin()}else if(overlay==='help')helpWin();else if(overlay==='neu')neuWin();else if(overlay==='teile')teileWin();else if(overlay==='result'&&result)resultWin();else if(overlay==='stall')stallWin()}
 }
 Promise.all(Object.keys(STATIONS).map(k=>HBR.loadStation(STATIONS[k]))).then(()=>{stSpr=STATIONS;init();requestAnimationFrame(frame)});
 window.__hb={st:()=>({sel,mode,overlay,result,hintUsed,hintMsg,hintK,placed:run.placed,ready:HB.ready(run),ok:result&&result.j.success,stars:result&&result.st}),hit:id=>ui.hits.find(h=>h.id===id)||null,dbgLoop:(i,j,din)=>{run.track.push({i,j,z0:0,z1:0,din,dout:din,type:'L'});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='ride';sel=null;window.__frz=1;const li=run.track.length-1,ks=ridePath.S.map((e,k)=>e.pi===li?k:-1).filter(k=>k>=0);window.__lk=ks;return ks.length},dbgCork:(i,j,din,z)=>{const d=HB.DV[din];run.track.push({i,j,z0:z,z1:z,din,dout:din,type:'C',half:0},{i:i+d[0],j:j+d[1],z0:z,z1:z,din,dout:din,type:'C',half:1});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='build';sel=null;window.__frz=1;const n=run.track.length,ks=ridePath.S.map((e,k)=>e.pi>=n-2&&e.pi<n?k:-1).filter(k=>k>=0);window.__lk=ks;const P=HBR.proj(L),m=P(i+.5+d[0]*.5,j+.5+d[1]*.5,z+.6);camManual=true;cam={x:m[0],y:m[1]};window.__ckm=m;return true},dbgCrop:(w,h)=>{const m=window.__ckm,c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(sceneCv,Math.round(m[0]-w/2),Math.round(m[1]-h*.62),w,h,0,0,w,h);return c.toDataURL()},dbgScr:()=>({x:window.__ckm[0]+Wc/2-cam.x,y:window.__ckm[1]+lay.areaTop+lay.areaH/2-cam.y}),dbgAt:f=>{mode='ride';const ks=window.__lk,k=ks[Math.round(f*(ks.length-1))];rideS=ridePath.D[k];cars=[rideS,rideS-.38,rideS-.76];partial=partial||{t:0,n:0};partialK=run.head.k;overlay=null},hits:()=>ui.hits.map(h=>({id:h.id,x:h.x,y:h.y,w:h.w,h:h.h})),get:()=>({run,sel,mode,overlay,result,lay,L,rideS,swing,stallS,rideTy:ridePath&&cars?HBR.posAt(ridePath,rideS).ty:null}),press:(k)=>{sel=k},build:buildPiece,go:startRide,close:()=>{overlay=null},lvl:i=>loadLevel(i),place:(seq)=>{seq.split('').forEach(k=>{const g=HB.ghost(run,k);if(g.valid){HB.place(run,g)}});path=HBR.buildPath(run,false)}};

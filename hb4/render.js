@@ -80,7 +80,7 @@
   // spine = Mittelrohr, shade = Schienen-Unterseite dunkel, sup = Stützen nur am aufrechten Teil
   // r = Abstand Schiene–Drehachse in Kacheln (klein = Heartline Roll, groß = Korkenzieher), hill = Bogen nach oben (Ebenen);
   // Höhe zählt in Ebenen, 1 Kachel = CKZ Ebenen, damit die Bahn ein echter Kreis um die Achse ist
-  const CKZ = 2, CK = { r: .38, hill: 0, ease: 'alt', spine: false, shade: false, sup: false };
+  const CKZ = 2, CK = { r: .2, hill: 0, ease: 'glatt', spine: true, shade: true, sup: true }; // H1 Heartline Roll (Jan, 2026-10-13)
   function setCK(o) { Object.assign(CK, o); }
   const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const LOOP = (function () {
@@ -315,6 +315,17 @@
   function drawBrake(c, P, bi, bj) {
     for (let k = 0; k < 5; k++) { const x = bi + .14 + k * .18; box(c, P, x, bj + .3, .06, .08, .4, .1, k % 2 ? R.base[3] : R.yellow[3], null); }
   }
+  // Ziel-Tor statt Fahne: zwei Pfosten quer zur Fahrtrichtung, schwarz-weiß kariertes Band darüber; Lampen grün, wenn der Kreis geschlossen ist
+  function drawGoal(c, P, ti, tj, dir, part, on, t) {
+    const d = DV[dir], s = [-d[1], d[0]], cx = ti + .5, cy = tj + .5, w = .44, h = 1.25, end = sg => [cx + s[0] * w * sg, cy + s[1] * w * sg];
+    const back = (s[0] + s[1]) > 0 ? -1 : 1; // Pfosten mit kleinerem x+y steht hinten
+    const post = sg => { const e = end(sg), a = P(e[0], e[1], 0), b = P(e[0], e[1], h); rect(c, a[0] - 2, a[1] - 1, 5, 2, R.stone[1]); pl(c, a[0], a[1], b[0], b[1], R.stone[1], 3); pl(c, a[0] - 1, a[1], b[0] - 1, b[1], R.stone[4], 1); const l = P(e[0], e[1], h + .12); disc(c, l[0], l[1], 2, on && Math.sin(t * 6) > -.3 ? R.green[3] : R.yellow[3]); };
+    if (part === 0) { post(back); return; }
+    post(-back); const n = 8;
+    for (let k = 0; k < n; k++) for (let r = 0; r < 2; r++) { const f0 = k / n, f1 = (k + 1) / n, e0 = [cx + s[0] * w * (2 * f0 - 1), cy + s[1] * w * (2 * f0 - 1)], e1 = [cx + s[0] * w * (2 * f1 - 1), cy + s[1] * w * (2 * f1 - 1)], z0 = h - .1 - r * .14, z1 = z0 - .14;
+      poly(c, [P(e0[0], e0[1], z0), P(e1[0], e1[1], z0), P(e1[0], e1[1], z1), P(e0[0], e0[1], z1)], (k + r) % 2 ? '#FFFFFF' : R.base[1]); }
+    const a = P(end(-1)[0], end(-1)[1], h - .1), b = P(end(1)[0], end(1)[1], h - .1); pl(c, a[0], a[1] - 1, b[0], b[1] - 1, R.stone[1], 1);
+  }
   function drawFlag(c, P, ti, tj, on, t) {
     const a = P(ti + .5, tj + .5, 0), b = P(ti + .5, tj + .5, 1.4); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 2); rect(c, b[0] - 1, b[1] - 1, 4, 3, R.yellow[3]);
     const w = Math.round(Math.sin(t * 6) * 1.5); poly(c, [[b[0] + 2, b[1] - 1], [b[0] + 16, b[1] + 3 + w], [b[0] + 2, b[1] + 8]], on ? '#5CC283' : R.yellow[3], R.base[1]);
@@ -399,13 +410,14 @@
     const P = proj(L), run = S.run, t = S.t, theme = S.theme, tc = R[S.trackCol || 'red'], st = run.track[0], sx = st.i, sy = st.j, dyn = [], boxes = [];
     c.imageSmoothingEnabled = false; c.lineCap = 'butt'; c.lineJoin = 'miter';
     c.clearRect(0, 0, L.W, L.H); c.drawImage(S.ground, 0, 0);
-    if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0); dyn.push({ d: S.target.i + S.target.j + 1.0, f: c2 => drawFlag(c2, P, S.target.i, S.target.j, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
+    if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0), gd = run.exit.dir; dyn.push({ d: S.target.i + S.target.j + .55, f: c2 => drawGoal(c2, P, S.target.i, S.target.j, gd, 0, S.ready, t) }); dyn.push({ d: S.target.i + S.target.j + 1.45, f: c2 => drawGoal(c2, P, S.target.i, S.target.j, gd, 1, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
     (S.flags || []).forEach(f => { const on = run.track.some(p => p.i === f[0] && p.j === f[1]); dyn.push({ d: f[0] + f[1] + .45, f: c2 => drawPflag(c2, P, f[0], f[1], on, t) }); });
     (S.pond || []).forEach(q => { const p = P(q[0] + .5, q[1] + .5, 0), ph = Math.floor(t * 2.5 + q[0] * 2 + q[1]) % 4; dyn.push({ d: q[0] + q[1] + .3, f: c2 => { rect(c2, p[0] - 9 + ph * 4, p[1] - 3 + (ph & 1), 3, 1, '#FFFFFF'); rect(c2, p[0] + 6 - ph * 3, p[1] + 1, 3, 1, R.water[4]); } }); });
     if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
     const qy = sy + 1.5;
-    for (let g = 0; g < 6; g++) { const ph = (t * .1 + g / 6) % 1, xx = (sx + 2.9) - ph * 1.9, yy = qy + (g % 2 ? .12 : -.12) - Math.max(0, (sx + 1.6 - xx)) * 1.6, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + .7), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
-    [[sx + 3.2, sy + 3.3, 0], [sx + 5.1, sy + 4.4, 1], [sx + 2.3, sy + 4.6, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
+    // Gäste bleiben auf dem gepflasterten Stationsplatz (Felder sx..sx+1, Zeile sy+1): Schlange vom Eingangstor zum Bahnsteig, Zuschauer am Rand
+    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
+    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
     const Sm = S.path.S;
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {

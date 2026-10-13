@@ -178,44 +178,63 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
 
 (function(root){
   'use strict';
-  const HB=root.HB;let BASE=null,RET=null,DECO=[[1,2],[2,2],[1,4],[2,4]];
-  const KINDS=['G','L','R','A','B','P'];
+  // Zufallsrätsel im Browser. make(spec, seed, versuche, opts):
+  // opts.bases = Grundrisse (Level-Objekte mit n, station, ret, deco, gate, target), opts.kinds = freigespielte Teile,
+  // opts.flags = höchstens so viele Pflicht-Flaggen. Ohne opts: alter Grundriss, nur Grundteile.
+  const HB=root.HB;let BASE=null;
+  const D4=[[1,0],[0,1],[-1,0],[0,-1]],key=(i,j)=>i+','+j,SPECIAL=['H','V','W','C'];
   const manh=(a,b)=>Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);
-  function init(base){BASE=base;RET=base.ret}
-  function walk(R,spec,budget){
-    const lvl={n:8,station:[1,3],blocked:[],deco:DECO,ret:RET,inv:{G:14,L:14,R:14,A:14,B:14,P:spec.loop==='no'?0:2},groups:['kids'],gate:[2,4],target:[3,5]};
-    const run=HB.newRun(lvl);let nodes=0,found=null;const exit=[run.exit.i,run.exit.j];
+  function init(base){BASE=base}
+  function reserved(b){const s=new Set(),st=b.station;for(let k=0;k<=4;k++)s.add(key(st[0]+k,st[1]));b.ret.forEach(r=>s.add(key(r[0],r[1])));b.deco.forEach(d=>s.add(key(d[0],d[1])));s.add(key(b.target[0],b.target[1]));return s}
+  function shuffle(R,a){for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));const t=a[i];a[i]=a[j];a[j]=t}return a}
+  // Zufallsweg mit kleinem Budget; Splash darf im Weg auf jedes freie Bodenfeld (dort entsteht danach ein Teich)
+  function walk(R,base,spec,kinds,must,budget){
+    const inv={};kinds.forEach(k=>inv[k]=k==='P'||k==='C'?2:SPECIAL.includes(k)?2:14);
+    const lvl=Object.assign({},base,{blocked:[],inv,groups:['kids'],flags:[]});const run=HB.newRun(lvl),res=reserved(base);
+    run.pond=new Set();for(let i=0;i<base.n;i++)for(let j=0;j<base.n;j++)if(!res.has(key(i,j)))run.pond.add(key(i,j));
+    const exit=[run.exit.i,run.exit.j];let nodes=0,found=null;
     (function go(){
       if(found||nodes++>budget)return;
       if(HB.ready(run)){
-        if(run.placed<spec.min||run.placed>spec.max)return;
-        const seq=run.hist.map(h=>h.kind).join('');
-        if(spec.loop==='must'&&!seq.includes('P'))return;
+        if(run.placed<spec.min||run.placed>spec.max)return;const seq=run.hist.map(h=>h.kind).join('');
+        if(spec.loop==='must'&&!seq.includes('P'))return;if(must&&!seq.includes(must))return;
         const feas=[];for(const cand of spec.groups){const jr=HB.judge(Object.assign({},run,{groups:cand.map(id=>HB.GROUPS[id])}));if(jr.success&&jr.centered)feas.push(cand)}
-        if(feas.length)found={seq,groups:feas[Math.floor(R()*feas.length)],track:run.track.map(p=>[p.i,p.j])};
-        return}
+        if(feas.length)found={seq,groups:feas[Math.floor(R()*feas.length)]};return}
       if(run.placed>=spec.max)return;
-      const h=run.head,nx=[h.i+HB.DV[h.dir][0],h.j+HB.DV[h.dir][1]];
-      const left=spec.max-run.placed;if(left<manh(nx,exit)||left<h.z)return;
-      const ks=KINDS.slice();for(let i=ks.length-1;i>0;i--){const j=Math.floor(R()*(i+1));const t=ks[i];ks[i]=ks[j];ks[j]=t}
-      if(h.z>0&&R()<.5){ks.splice(ks.indexOf('B'),1);ks.unshift('B')}
+      const h=run.head,nx=[h.i+D4[h.dir][0],h.j+D4[h.dir][1]];const left=spec.max-run.placed;if(left<manh(nx,exit)||left<h.z)return;
+      const ks=shuffle(R,kinds.slice());if(h.z>0&&R()<.5){ks.splice(ks.indexOf('B'),1);ks.unshift('B')}
+      if(must&&run.hist.every(x=>x.kind!==must)&&R()<.5){ks.splice(ks.indexOf(must),1);ks.unshift(must)}
       for(const k of ks){if(spec.loop==='no'&&k==='P')continue;const g=HB.ghost(run,k);if(!g.valid||g.stall)continue;HB.place(run,g);go();if(found)return;HB.undo(run)}
     })();
     return found}
-  function make(spec,seed,attempts){
-    const R=HB.mulberry32(seed>>>0);
+  function make(spec,seed,attempts,opts){
+    const R=HB.mulberry32(seed>>>0);opts=opts||{};
+    // Grundriss passend zur Länge: lange Rückfahrt (P3) und 9×9 erst ab mittleren Strecken
+    let bases=(opts.bases&&opts.bases.length)?opts.bases:[BASE];const fit=bases.filter(b=>spec.max>=14||(b.n<=8&&b.ret.length<=6)||spec.max>=13&&b.ret.length<=6);if(fit.length)bases=fit;
+    const kinds0=opts.kinds||['G','L','R','A','B','P'];
     for(let a=0;a<(attempts||2);a++){
-      const w=walk(R,spec,spec.budget||8000);if(!w)continue;
+      const base=bases[Math.floor(R()*bases.length)],res=reserved(base),N=base.n;
+      const specials=kinds0.filter(k=>SPECIAL.includes(k)),must=specials.length&&R()<.75?specials[Math.floor(R()*specials.length)]:null;
+      // Splash nur, wenn er Pflichtteil ist oder selten zufällig – sonst prägt er fast jedes Rätsel
+      const kinds=kinds0.filter(k=>k!=='W'||must==='W'||R()<.25);
+      const w=walk(R,base,spec,kinds,must,spec.budget||8000);if(!w)continue;
+      // Strecke nachbauen: Splash-Felder werden Teich
+      const pondT=[];{const r=HB.newRun(Object.assign({},base,{blocked:[],inv:{},groups:['kids'],flags:[]}));r.inv=new Proxy({},{get:()=>9});r.pond=new Set();for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!res.has(key(i,j)))r.pond.add(key(i,j));
+        for(const k of w.seq){const g=HB.ghost(r,k);HB.place(r,g);if(k==='W')pondT.push([g.i,g.j])}
+        var path=new Set(r.track.slice(1+r.lift).map(p=>key(p.i,p.j)))}
       const inv={};for(const c of w.seq)inv[c]=(inv[c]||0)+1;
-      for(let e=0;e<(spec.extras||0);e++){const k=['G','L','R','A','B'][Math.floor(R()*5)];inv[k]=(inv[k]||0)+1}
-      const path=new Set(w.track.map(p=>p[0]+','+p[1]));
-      const res=new Set(DECO.concat(RET.map(r=>[r[0],r[1]]),[[3,5],[3,4],[3,3],[4,3],[5,3]]).map(p=>p[0]+','+p[1]));
-      const ok=(i,j)=>i>=4&&i<8&&j>=1&&j<8&&!path.has(i+','+j)&&!res.has(i+','+j);
-      const seeds=[];for(let i=4;i<8;i++)for(let j=1;j<8;j++)if(ok(i,j)&&[[1,0],[-1,0],[0,1],[0,-1]].some(d=>path.has((i+d[0])+','+(j+d[1]))))seeds.push([i,j]);
+      for(let e=0;e<(spec.extras||0);e++){const k=['G','L','R','B'][Math.floor(R()*4)];inv[k]=(inv[k]||0)+1}
+      if(Object.keys(inv).length>8)continue;
+      const taken=new Set(pondT.map(p=>key(p[0],p[1]))),ok=(i,j)=>i>=0&&j>=0&&i<N&&j<N&&!path.has(key(i,j))&&!res.has(key(i,j))&&!taken.has(key(i,j));
+      // Teich als Hindernis neben der Strecke
+      const seeds=[];for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(ok(i,j)&&D4.some(d=>path.has(key(i+d[0],j+d[1]))))seeds.push([i,j]);
       if(!seeds.length)continue;
-      const s0=seeds[Math.floor(R()*seeds.length)],pond=[[s0[0],s0[1]]],want=spec.pond[0]+Math.floor(R()*(spec.pond[1]-spec.pond[0]+1));
-      for(let t=0;t<60&&pond.length<want;t++){const b=pond[Math.floor(R()*pond.length)],d=[[1,0],[-1,0],[0,1],[0,-1]][Math.floor(R()*4)],ni=b[0]+d[0],nj=b[1]+d[1];if(ok(ni,nj)&&!pond.some(p=>p[0]===ni&&p[1]===nj))pond.push([ni,nj])}
-      const lvl=Object.assign({},BASE,{blocked:pond,deco:DECO,inv,groups:w.groups});
+      const s0=seeds[Math.floor(R()*seeds.length)],pond=[[s0[0],s0[1]]],want=spec.pond[0]+Math.floor(R()*(spec.pond[1]-spec.pond[0]+1));taken.add(key(s0[0],s0[1]));
+      for(let t=0;t<60&&pond.length<want;t++){const b=pond[Math.floor(R()*pond.length)],d=D4[Math.floor(R()*4)],ni=b[0]+d[0],nj=b[1]+d[1];if(ok(ni,nj)){pond.push([ni,nj]);taken.add(key(ni,nj))}}
+      // Pflicht-Flaggen auf Feldern der gefundenen Strecke, mindestens 3 Felder auseinander
+      const flags=[],nf=Math.min(opts.flags||0,spec.flags||0),cand=shuffle(R,[...path].map(s=>s.split(',').map(Number)).filter(p=>!res.has(key(p[0],p[1]))));
+      for(const p of cand){if(flags.length>=nf)break;if(flags.every(f=>manh(f,p)>=3))flags.push(p)}
+      const lvl={n:N,station:base.station,ret:base.ret,deco:base.deco,gate:base.gate,target:base.target,blocked:pondT.concat(pond),inv,groups:w.groups,flags};
       const r=HB.solve(lvl,spec.maxSol+1,40000),cen=r.sols.filter(s=>s.centered);
       if(r.sols.length<1||!cen.length||r.sols.length>spec.maxSol)continue;
       lvl.par=Math.min(...cen.map(s=>s.placed));return lvl}
@@ -307,7 +326,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   // spine = Mittelrohr, shade = Schienen-Unterseite dunkel, sup = Stützen nur am aufrechten Teil
   // r = Abstand Schiene–Drehachse in Kacheln (klein = Heartline Roll, groß = Korkenzieher), hill = Bogen nach oben (Ebenen);
   // Höhe zählt in Ebenen, 1 Kachel = CKZ Ebenen, damit die Bahn ein echter Kreis um die Achse ist
-  const CKZ = 2, CK = { r: .38, hill: 0, ease: 'alt', spine: false, shade: false, sup: false };
+  const CKZ = 2, CK = { r: .2, hill: 0, ease: 'glatt', spine: true, shade: true, sup: true }; // H1 Heartline Roll (Jan, 2026-10-13)
   function setCK(o) { Object.assign(CK, o); }
   const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const LOOP = (function () {
@@ -542,6 +561,17 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   function drawBrake(c, P, bi, bj) {
     for (let k = 0; k < 5; k++) { const x = bi + .14 + k * .18; box(c, P, x, bj + .3, .06, .08, .4, .1, k % 2 ? R.base[3] : R.yellow[3], null); }
   }
+  // Ziel-Tor statt Fahne: zwei Pfosten quer zur Fahrtrichtung, schwarz-weiß kariertes Band darüber; Lampen grün, wenn der Kreis geschlossen ist
+  function drawGoal(c, P, ti, tj, dir, part, on, t) {
+    const d = DV[dir], s = [-d[1], d[0]], cx = ti + .5, cy = tj + .5, w = .44, h = 1.25, end = sg => [cx + s[0] * w * sg, cy + s[1] * w * sg];
+    const back = (s[0] + s[1]) > 0 ? -1 : 1; // Pfosten mit kleinerem x+y steht hinten
+    const post = sg => { const e = end(sg), a = P(e[0], e[1], 0), b = P(e[0], e[1], h); rect(c, a[0] - 2, a[1] - 1, 5, 2, R.stone[1]); pl(c, a[0], a[1], b[0], b[1], R.stone[1], 3); pl(c, a[0] - 1, a[1], b[0] - 1, b[1], R.stone[4], 1); const l = P(e[0], e[1], h + .12); disc(c, l[0], l[1], 2, on && Math.sin(t * 6) > -.3 ? R.green[3] : R.yellow[3]); };
+    if (part === 0) { post(back); return; }
+    post(-back); const n = 8;
+    for (let k = 0; k < n; k++) for (let r = 0; r < 2; r++) { const f0 = k / n, f1 = (k + 1) / n, e0 = [cx + s[0] * w * (2 * f0 - 1), cy + s[1] * w * (2 * f0 - 1)], e1 = [cx + s[0] * w * (2 * f1 - 1), cy + s[1] * w * (2 * f1 - 1)], z0 = h - .1 - r * .14, z1 = z0 - .14;
+      poly(c, [P(e0[0], e0[1], z0), P(e1[0], e1[1], z0), P(e1[0], e1[1], z1), P(e0[0], e0[1], z1)], (k + r) % 2 ? '#FFFFFF' : R.base[1]); }
+    const a = P(end(-1)[0], end(-1)[1], h - .1), b = P(end(1)[0], end(1)[1], h - .1); pl(c, a[0], a[1] - 1, b[0], b[1] - 1, R.stone[1], 1);
+  }
   function drawFlag(c, P, ti, tj, on, t) {
     const a = P(ti + .5, tj + .5, 0), b = P(ti + .5, tj + .5, 1.4); pl(c, a[0], a[1], b[0], b[1], R.stone[4], 2); rect(c, b[0] - 1, b[1] - 1, 4, 3, R.yellow[3]);
     const w = Math.round(Math.sin(t * 6) * 1.5); poly(c, [[b[0] + 2, b[1] - 1], [b[0] + 16, b[1] + 3 + w], [b[0] + 2, b[1] + 8]], on ? '#5CC283' : R.yellow[3], R.base[1]);
@@ -626,13 +656,14 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     const P = proj(L), run = S.run, t = S.t, theme = S.theme, tc = R[S.trackCol || 'red'], st = run.track[0], sx = st.i, sy = st.j, dyn = [], boxes = [];
     c.imageSmoothingEnabled = false; c.lineCap = 'butt'; c.lineJoin = 'miter';
     c.clearRect(0, 0, L.W, L.H); c.drawImage(S.ground, 0, 0);
-    if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0); dyn.push({ d: S.target.i + S.target.j + 1.0, f: c2 => drawFlag(c2, P, S.target.i, S.target.j, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
+    if (S.target) { const bp = P(S.target.i + .5, S.target.j + .5, 1.0), gd = run.exit.dir; dyn.push({ d: S.target.i + S.target.j + .55, f: c2 => drawGoal(c2, P, S.target.i, S.target.j, gd, 0, S.ready, t) }); dyn.push({ d: S.target.i + S.target.j + 1.45, f: c2 => drawGoal(c2, P, S.target.i, S.target.j, gd, 1, S.ready, t) }); boxes.push([bp[0] - 30, bp[1] - 44, 70, 90]); }
     (S.flags || []).forEach(f => { const on = run.track.some(p => p.i === f[0] && p.j === f[1]); dyn.push({ d: f[0] + f[1] + .45, f: c2 => drawPflag(c2, P, f[0], f[1], on, t) }); });
     (S.pond || []).forEach(q => { const p = P(q[0] + .5, q[1] + .5, 0), ph = Math.floor(t * 2.5 + q[0] * 2 + q[1]) % 4; dyn.push({ d: q[0] + q[1] + .3, f: c2 => { rect(c2, p[0] - 9 + ph * 4, p[1] - 3 + (ph & 1), 3, 1, '#FFFFFF'); rect(c2, p[0] + 6 - ph * 3, p[1] + 1, 3, 1, R.water[4]); } }); });
     if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
     const qy = sy + 1.5;
-    for (let g = 0; g < 6; g++) { const ph = (t * .1 + g / 6) % 1, xx = (sx + 2.9) - ph * 1.9, yy = qy + (g % 2 ? .12 : -.12) - Math.max(0, (sx + 1.6 - xx)) * 1.6, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + .7), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
-    [[sx + 3.2, sy + 3.3, 0], [sx + 5.1, sy + 4.4, 1], [sx + 2.3, sy + 4.6, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
+    // Gäste bleiben auf dem gepflasterten Stationsplatz (Felder sx..sx+1, Zeile sy+1): Schlange vom Eingangstor zum Bahnsteig, Zuschauer am Rand
+    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
+    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
     const Sm = S.path.S;
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {
@@ -756,6 +787,8 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{willReadFrequentl
 const U=HBUI.U,ui=HBUI.make(ctx),C=HBUI.C,T=ui.text;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let saved=store.get('hb4',{s:{},help:0,cur:0,rz:0});if(!saved.s)saved.s={};
+// Spielstand-Version 2: Level ab 1-4 sind neu, deshalb Sterne einmalig zurücksetzen; seen = schon erklärte Elemente
+if((saved.v||0)<2){saved.s={};saved.cur=0;saved.v=2;saved.seen=[];store.set('hb4',saved)}if(!saved.seen)saved.seen=[];
 HBG.init(LEVELS[0]);
 let LEVEL=LEVELS[Math.min(saved.cur||0,LEVELS.length-1)],stSpr={};const TH=()=>LEVEL.theme==='coast'?'meadow':LEVEL.theme,lvIdx=()=>LEVELS.indexOf(LEVEL),stars_=id=>saved.s[id]||0,unlocked=i=>i===0||stars_(LEVELS[i-1].id)>=1;
 const scr=document.createElement('canvas');scr.width=4;scr.height=4;{const g=scr.getContext('2d');g.fillStyle='#1E0D0B';g.fillRect(0,0,2,2);g.fillRect(2,2,2,2)}const scrim=ctx.createPattern(scr,'repeat');
@@ -813,17 +846,20 @@ function focus(){
 }
 function clampCam(){const mx=Wc/2-70,Mx=L.W-Wc/2+70,my=lay.areaH/2-50,My=L.H-lay.areaH/2+50;cam.x=Math.max(Math.min(mx,Mx),Math.min(Math.max(mx,Mx),cam.x));cam.y=Math.max(Math.min(my,My),Math.min(Math.max(my,My),cam.y))}
 function newRun(){hintK=null;hintSeq=null;run=HB.newRun(LEVEL);path=HBR.buildPath(run,false);sel=null;mode='build';cars=null;partial=null;result=null;camManual=false;if(L)cam=focus()}
-function loadLevel(i){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';LEVEL=LEVELS[i];saved.cur=i;store.set('hb4',saved);stat=null;statKey='';overlay=saved.help?null:'help';inGame=true;init()}
+function loadLevel(i){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';LEVEL=LEVELS[i];saved.cur=i;store.set('hb4',saved);stat=null;statKey='';overlay=saved.help?(neuList().length?'neu':null):'help';inGame=true;init()}
 const STY={meadow:'B1',winter:'A2',desert:'D1',coast:'C1'},TCOL={meadow:['red','blue','green'],winter:['blue','red'],desert:['orange','red'],coast:['green','blue']},THEMES=['meadow','winter','desert','coast'],DIFFN=['Leicht','Mittel','Schwer'];
-const SPECS=[{min:8,max:12,groups:[['kids'],['fam']],loop:'no',extras:1,pond:[4,6],maxSol:30},{min:10,max:14,groups:[['fam'],['teens']],loop:'allow',extras:1,pond:[4,6],maxSol:12},{min:12,max:17,groups:[['teens'],['fans']],loop:'allow',extras:2,pond:[4,6],maxSol:6,budget:15000}];
+const SPECS=[{min:8,max:12,groups:[['kids'],['fam']],loop:'no',extras:1,pond:[4,6],maxSol:100,flags:0},{min:10,max:14,groups:[['fam'],['teens']],loop:'allow',extras:1,pond:[4,6],maxSol:60,flags:1},{min:12,max:17,groups:[['teens'],['fans']],loop:'allow',extras:2,pond:[4,6],maxSol:30,budget:15000,flags:2}];
+// Zufall nutzt alles, was in freigespielten Leveln vorkommt: Teile, Grundrisse, Pflicht-Flaggen
+function randOpts(){const U=LEVELS.filter((l,i)=>unlocked(i)),seen=new Set(),bases=[];U.forEach(l=>{const k=l.n+'|'+l.station+'|'+JSON.stringify(l.ret);if(!seen.has(k)){seen.add(k);bases.push(l)}});
+  return{bases,kinds:[...new Set(['G','L','R','A','B'].concat(...U.map(l=>Object.keys(l.inv))))],flags:Math.max(0,...U.map(l=>(l.flags||[]).length))}}
 const TCODE={m:'meadow',w:'winter',d:'desert',k:'coast'};
 function randLevel(base,diff,seed){const th=THEMES[(seed>>>3)%4];return Object.assign({},base,{id:'z'+seed,name:'Zufall '+DIFFN[diff],theme:th,style:STY[th],trackCol:TCOL[th][seed%TCOL[th].length],chapter:0,rnd:true,diff})}
 function expandPool(e,seed){const b=LEVELS[0];return randLevel(Object.assign({},b,{blocked:e.b,inv:e.i,groups:e.g,par:e.p}),e.d,seed)}
-function playRandom(l){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';inGame=true;LEVEL=l;stat=null;statKey='';busyMsg='';overlay=null;init()}
+function playRandom(l){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';inGame=true;LEVEL=l;stat=null;statKey='';busyMsg='';overlay=neuList().length?'neu':null;init()}
 function startRandom(diff){
   lastDiff=diff;overlay='busy';busyMsg='Erzeuge Rätsel...';const t0=performance.now();
   const step=()=>{
-    const seed=(Math.random()*1e9)|0;let l=null;try{l=HBG.make(SPECS[diff],seed,2)}catch(e){l=null}
+    const seed=(Math.random()*1e9)|0;let l=null;try{l=HBG.make(SPECS[diff],seed,2,randOpts())}catch(e){l=null}
     if(l){playRandom(randLevel(l,diff,seed));return}
     if(performance.now()-t0<4500){setTimeout(step,0);return}
     const cand=POOL.filter(e=>e.d===diff);const e=(cand.length?cand:POOL)[Math.floor(Math.random()*(cand.length||POOL.length))];
@@ -917,12 +953,36 @@ function topBar(){
   ui.btn('help',Wu-17,2,13,12,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+4,y2+2,'?',C.txt)}});
 }
 function dialogBase(w,h,title){const x=Math.floor((Wu-w)/2),y=Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
+// ---------- Erklärungen: neue Elemente beim ersten Auftreten, Übersicht in der Hilfe ----------
+const INFO={G:['Gerade','Kostet kaum Schwung.'],L:['Kurve','Etwas Aufregung.'],A:['Anstieg','Geht nur mit Schwung.'],B:['Abfahrt','Gibt Schwung.'],
+ P:['Looping','Braucht Schwung 2,6.','Viel Aufregung.'],H:['Bremse','Senkt den Schwung,','beruhigt die Fahrt.'],V:['Booster','Gibt Schwung, auch','auf flacher Strecke.'],
+ W:['Splash','Nur durch einen Teich,','am Boden. Bremst stark.'],C:['Korkenzieher','Zwei Felder, kopfüber.','Braucht Schwung 2,0.'],
+ F:['Pflicht-Flagge','Die Strecke muss über','jede rot-weiße Flagge.'],Z:['Ziel-Tor','Hier endet die Strecke,','unten am Boden.']};
+const KURZ={Z:'Hier endet die Strecke.',F:'Strecke muss drüber.',G:'Kostet kaum Schwung.',L:'Etwas Aufregung.',A:'Geht nur mit Schwung.',B:'Gibt Schwung.',P:'Braucht Schwung 2,6.',H:'Senkt den Schwung.',V:'Gibt Schwung, auch flach.',W:'Nur durch einen Teich.',C:'2 Felder, kopfüber.'};
+function infoIcon(k,x,y){
+  if(k==='F'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+5,y+3,2,16,'#5A5F6B');ui.fr(x+4,y+2,3,2,'#F2C12E');for(let q=0;q<4;q++)ui.fr(x+7+q*3,y+3+q,3,8-2*q,q%2?'#FFFFFF':'#E04A3C');ui.fr(x+2,y+17,3,2,'#E04A3C');ui.fr(x+14,y+16,3,2,'#E04A3C');return}
+  if(k==='Z'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+2,y+3,2,17,'#5A5F6B');ui.fr(x+16,y+3,2,17,'#5A5F6B');for(let q=0;q<6;q++)for(let r=0;r<2;r++)ui.fr(x+4+q*2,y+4+r*2,2,2,(q+r)%2?'#FFFFFF':'#1B2030');ui.fr(x+8,y+12,4,8,'#D8312B');return}
+  pieceIcon(k==='R'?'L':k,x,y)}
+const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).filter(k=>!saved.seen.includes(k)):[];
+function afterHelp(){overlay=neuList().length?'neu':null}
+function neuWin(){
+  const L2=neuList().slice(0,3),w=Math.min(176,Wu-10),h=22+L2.length*34+20,p=dialogBase(w,h,'Neu in diesem Level'),x=p.x,y=p.y;
+  L2.forEach((k,n)=>{const yy=y+16+n*34;infoIcon(k,x+6,yy+2);T(x+31,yy,INFO[k][0],C.yel);T(x+31,yy+10,INFO[k][1],C.txt);if(INFO[k][2])T(x+31,yy+19,INFO[k][2],C.txt)});
+  ui.btn('nok',x+w-44,y+h-20,38,15,{fn:()=>{L2.forEach(k=>saved.seen.push(k));store.set('hb4',saved);overlay=neuList().length?'neu':null},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
+}
+function teileWin(){
+  const ks=['Z','F','G','L','A','B','P','H','V','W','C'],w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
+  ks.forEach((k,n)=>{const yy=y+15+n*22;infoIcon(k,x+5,yy);T(x+29,yy+1,INFO[k][0],C.yel);T(x+29,yy+11,KURZ[k],C.txt)});
+  ui.btn('tok',x+w-44,y+h-19,38,15,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});
+}
 function helpWin(){
-  const w=Math.min(176,Wu-10),h=96,p=dialogBase(w,h,"So geht's"),x=p.x,y=p.y;
+  const w=Math.min(176,Wu-10),h=134,p=dialogBase(w,h,"So geht's"),x=p.x,y=p.y;
   pieceIcon('R',x+6,y+16);T(x+31,y+20,'1  Teil wählen',C.txt);
   ui.fr(x+6,y+40,20,20,C.lo);ui.fr(x+7,y+41,18,18,'#5DAE34');ui.fr(x+14,y+45,3,10,C.txt);ui.fr(x+10,y+49,11,3,C.txt);T(x+31,y+44,'2  BAUEN tippen',C.txt);
-  ui.fr(x+6,y+64,20,20,'#F2C12E');ui.fr(x+8,y+66,16,16,'#FFFFFF');ui.fr(x+12,y+70,8,8,'#3B8528');T(x+31,y+64,'3  Kreis',C.txt);T(x+31,y+72,'schließen',C.txt);
-  ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{overlay=null;saved.help=1;store.set('hb4',saved)},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
+  infoIcon('Z',x+6,y+64);T(x+31,y+64,'3  Bis zum Ziel-Tor,',C.txt);T(x+31,y+73,'dann FAHRT tippen',C.txt);
+  infoIcon('F',x+6,y+88);T(x+31,y+88,'Rot-weiße Flaggen:',C.txt);T(x+31,y+97,'Strecke muss drüber',C.txt);
+  ui.btn('hteile',x+6,y+h-20,72,15,{fn:()=>{overlay='teile'},draw:(x2,y2)=>{T(x2+5,y2+4,'Alle Teile',C.txt)}});
+  ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{saved.help=1;store.set('hb4',saved);afterHelp()},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function resultWin(){
   const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung'),x=p.x,y=p.y;
@@ -1037,7 +1097,7 @@ function frame(now){
   ctx.drawImage(sceneCv,Math.round(Wc/2-cam.x),Math.round(lay.areaTop+lay.areaH/2-cam.y));
   ctx.restore();
   hintSync();ui.begin();topBar();guestsWin();schwungWin();buildWin();hintBar();
-  if(overlay){ui.hits.length=0;if(overlay==='menu')menuWin();else if(overlay==='rand'||overlay==='busy'||overlay==='levels'){ctx.globalAlpha=.55;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);ctx.globalAlpha=1;if(overlay==='rand')randWin();else if(overlay==='busy')busyWin();else levelsWin()}else if(overlay==='help')helpWin();else if(overlay==='result'&&result)resultWin();else if(overlay==='stall')stallWin()}
+  if(overlay){ui.hits.length=0;if(overlay==='menu')menuWin();else if(overlay==='rand'||overlay==='busy'||overlay==='levels'){ctx.globalAlpha=.55;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);ctx.globalAlpha=1;if(overlay==='rand')randWin();else if(overlay==='busy')busyWin();else levelsWin()}else if(overlay==='help')helpWin();else if(overlay==='neu')neuWin();else if(overlay==='teile')teileWin();else if(overlay==='result'&&result)resultWin();else if(overlay==='stall')stallWin()}
 }
 Promise.all(Object.keys(STATIONS).map(k=>HBR.loadStation(STATIONS[k]))).then(()=>{stSpr=STATIONS;init();requestAnimationFrame(frame)});
 window.__hb={st:()=>({sel,mode,overlay,result,hintUsed,hintMsg,hintK,placed:run.placed,ready:HB.ready(run),ok:result&&result.j.success,stars:result&&result.st}),hit:id=>ui.hits.find(h=>h.id===id)||null,dbgLoop:(i,j,din)=>{run.track.push({i,j,z0:0,z1:0,din,dout:din,type:'L'});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='ride';sel=null;window.__frz=1;const li=run.track.length-1,ks=ridePath.S.map((e,k)=>e.pi===li?k:-1).filter(k=>k>=0);window.__lk=ks;return ks.length},dbgCork:(i,j,din,z)=>{const d=HB.DV[din];run.track.push({i,j,z0:z,z1:z,din,dout:din,type:'C',half:0},{i:i+d[0],j:j+d[1],z0:z,z1:z,din,dout:din,type:'C',half:1});path=HBR.buildPath(run,false);ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);stat=null;statKey='';mode='build';sel=null;window.__frz=1;const n=run.track.length,ks=ridePath.S.map((e,k)=>e.pi>=n-2&&e.pi<n?k:-1).filter(k=>k>=0);window.__lk=ks;const P=HBR.proj(L),m=P(i+.5+d[0]*.5,j+.5+d[1]*.5,z+.6);camManual=true;cam={x:m[0],y:m[1]};window.__ckm=m;return true},dbgCrop:(w,h)=>{const m=window.__ckm,c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(sceneCv,Math.round(m[0]-w/2),Math.round(m[1]-h*.62),w,h,0,0,w,h);return c.toDataURL()},dbgScr:()=>({x:window.__ckm[0]+Wc/2-cam.x,y:window.__ckm[1]+lay.areaTop+lay.areaH/2-cam.y}),dbgAt:f=>{mode='ride';const ks=window.__lk,k=ks[Math.round(f*(ks.length-1))];rideS=ridePath.D[k];cars=[rideS,rideS-.38,rideS-.76];partial=partial||{t:0,n:0};partialK=run.head.k;overlay=null},hits:()=>ui.hits.map(h=>({id:h.id,x:h.x,y:h.y,w:h.w,h:h.h})),get:()=>({run,sel,mode,overlay,result,lay,L,rideS,swing,stallS,rideTy:ridePath&&cars?HBR.posAt(ridePath,rideS).ty:null}),press:(k)=>{sel=k},build:buildPiece,go:startRide,close:()=>{overlay=null},lvl:i=>loadLevel(i),place:(seq)=>{seq.split('').forEach(k=>{const g=HB.ghost(run,k);if(g.valid){HB.place(run,g)}});path=HBR.buildPath(run,false)}};
