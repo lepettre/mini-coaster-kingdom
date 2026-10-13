@@ -783,7 +783,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   // Ton komplett per WebAudio erzeugt: keine Aufnahmen, keine Dateien. Melodien sind eigene Kompositionen (Walzer, Galopp),
   // Stimmen (Schreien, Juchzen, Lachen) entstehen aus Sägezahn-Klang durch Vokal-Filter (Formanten).
   // attach(ctx, ziel) erlaubt auch das Rendern in einen OfflineAudioContext (Hörprobe).
-  let C = null, OUT = null, MUS = null, SFX = null, NOISE = null, on = false, mode = null, next = 0, step = 0, timer = null, chainT = 0, lastVoice = 0;
+  let C = null, OUT = null, MUS = null, BUS = null, SFX = null, NOISE = null, on = false, mode = null, next = 0, step = 0, timer = null, chainT = 0, lastVoice = 0;
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
   // Noten als MIDI-Nummern: [Ton, Dauer in Schlägen]
   const N = { G4: 67, A4: 69, B4: 71, C5: 72, D5: 74, E5: 76, F5: 77, Fs5: 78, G5: 79, A5: 81, B5: 83, C6: 84, D6: 86, E6: 88, G3: 55, D3: 50, C3: 48, F3: 53 };
@@ -809,15 +809,15 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   function env(g, t, a, d, peak, sus, rel, end) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.linearRampToValueAtTime(peak * sus, t + a + d); g.gain.setValueAtTime(peak * sus, end); g.gain.linearRampToValueAtTime(0, end + rel); }
   // Drehorgel-Ton: Rechteck + leise Oktave darüber, sanftes Vibrato, Tiefpass
   function organ(t, m, dur, vol, dest) {
-    const f = mtof(m), g = C.createGain(), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = .7; g.connect(lp); lp.connect(dest || MUS);
+    const f = mtof(m), g = C.createGain(), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = .7; g.connect(lp); lp.connect(dest || BUS || MUS);
     const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 5.5; lg.gain.value = f * .004; lfo.connect(lg);
     // eine Stimme ohne Verstimmung (vorher zwei leicht verstimmte Pfeifen = Schwebung, klang doppelt), Oktave darüber leise für den Orgelglanz
     [['square', f, .55, 0], ['triangle', f * 2, .18, 0]].forEach(o => { const os = C.createOscillator(), og = C.createGain(); os.type = o[0]; os.frequency.value = o[1]; og.gain.value = o[2]; lg.connect(os.frequency); os.connect(og); og.connect(g); os.start(t); os.stop(t + dur + .15); });
     lfo.start(t); lfo.stop(t + dur + .15); env(g, t, .01, .08, vol, .7, .08, t + dur * .92);
   }
-  function bass(t, m, dur, vol) { const os = C.createOscillator(), g = C.createGain(); os.type = 'triangle'; os.frequency.value = mtof(m); os.connect(g); g.connect(MUS); env(g, t, .005, .1, vol, .5, .05, t + dur * .7); os.start(t); os.stop(t + dur + .1); }
-  function chordHit(t, notes, dur, vol) { notes.forEach(m => { const os = C.createOscillator(), g = C.createGain(), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; os.type = 'square'; os.frequency.value = mtof(m); os.connect(g); g.connect(lp); lp.connect(MUS); env(g, t, .005, .06, vol, .4, .04, t + dur * .5); os.start(t); os.stop(t + dur + .1); }); }
-  function drum(t, low) { const s = C.createBufferSource(), g = C.createGain(), f = C.createBiquadFilter(); s.buffer = NOISE; f.type = low ? 'lowpass' : 'highpass'; f.frequency.value = low ? 180 : 5000; s.connect(f); f.connect(g); g.connect(MUS); env(g, t, .002, .05, low ? .8 : .18, .1, .03, t + .05); s.start(t, Math.random()); s.stop(t + .15); }
+  function bass(t, m, dur, vol) { const os = C.createOscillator(), g = C.createGain(); os.type = 'triangle'; os.frequency.value = mtof(m); os.connect(g); g.connect(BUS || MUS); env(g, t, .005, .1, vol, .5, .05, t + dur * .7); os.start(t); os.stop(t + dur + .1); }
+  function chordHit(t, notes, dur, vol) { notes.forEach(m => { const os = C.createOscillator(), g = C.createGain(), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800; os.type = 'square'; os.frequency.value = mtof(m); os.connect(g); g.connect(lp); lp.connect(BUS || MUS); env(g, t, .005, .06, vol, .4, .04, t + dur * .5); os.start(t); os.stop(t + dur + .1); }); }
+  function drum(t, low) { const s = C.createBufferSource(), g = C.createGain(), f = C.createBiquadFilter(); s.buffer = NOISE; f.type = low ? 'lowpass' : 'highpass'; f.frequency.value = low ? 180 : 5000; s.connect(f); f.connect(g); g.connect(BUS || MUS); env(g, t, .002, .05, low ? .8 : .18, .1, .03, t + .05); s.start(t, Math.random()); s.stop(t + .15); }
   // ein Takt eines Stücks ab Zeit t; Begleitung: Bass auf 1, Akkord auf den übrigen Schlägen (Walzer) bzw. Um-ta (Galopp)
   function bar(song, i, t) {
     const sp = 60 / song.bpm, b = song.bars[i % song.bars.length], ch = CH[song.chords[i % song.chords.length]];
@@ -826,7 +826,11 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     return song.beats * sp;
   }
   function tick() { if (!C || !mode) return; const song = mode === 'ride' ? GAL : WAL; while (next < C.currentTime + .4) { next += bar(song, step++, next); } }
-  function music(m) { if (m === mode) return; mode = m; step = 0; if (C) next = C.currentTime + .1; }
+  // Stückwechsel: jedes Stück hat einen eigenen Kanal; der alte wird sofort ausgeblendet, damit bereits geplante Takte
+  // nicht in das neue Stück hineinklingen (sonst liefen Walzer und Galopp kurz doppelt)
+  function music(m) { if (m === mode) return; mode = m; step = 0; if (!C) return; next = C.currentTime + .15;
+    if (BUS) { const old = BUS, t = C.currentTime; old.gain.cancelScheduledValues(t); old.gain.setValueAtTime(old.gain.value, t); old.gain.linearRampToValueAtTime(0, t + .12); setTimeout(() => { try { old.disconnect(); } catch (e) {} }, 400); }
+    BUS = C.createGain(); BUS.gain.value = 1; BUS.connect(MUS); }
   // ---------- Geräusche ----------
   function noiseHit(t, type, f0, f1, dur, vol, q) { const s = C.createBufferSource(), fl = C.createBiquadFilter(), g = C.createGain(); s.buffer = NOISE; fl.type = type; fl.Q.value = q || 1; fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + dur); s.connect(fl); fl.connect(g); g.connect(SFX); env(g, t, .005, dur * .3, vol, .5, dur * .5, t + dur * .5); s.start(t, Math.random()); s.stop(t + dur + .1); }
   function blip(t, f0, f1, dur, vol, type) { const os = C.createOscillator(), g = C.createGain(); os.type = type || 'square'; os.frequency.setValueAtTime(f0, t); os.frequency.exponentialRampToValueAtTime(f1, t + dur); os.connect(g); g.connect(SFX); env(g, t, .003, dur * .3, vol, .4, dur * .3, t + dur * .6); os.start(t); os.stop(t + dur + .05); }
@@ -859,7 +863,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   // Lifthill-Kette: regelmäßiges Klacken, solange chain(true) aufgerufen wird
   function chain(active) { if (!C || !on || !active) return; if (C.currentTime >= chainT) { FX.chain(C.currentTime + .01); chainT = C.currentTime + .14; } }
   function setOn(v) {
-    on = !!v; if (on && !C) { const AC = root.AudioContext || root.webkitAudioContext; if (!AC) { on = false; return false; } attach(new AC()); timer = setInterval(tick, 100); }
+    on = !!v; if (on && !C) { const AC = root.AudioContext || root.webkitAudioContext; if (!AC) { on = false; return false; } attach(new AC()); timer = setInterval(tick, 100); const m = mode; mode = null; if (m) music(m); }
     if (C) { if (on) { C.resume && C.resume(); next = C.currentTime + .1; } else C.suspend && C.suspend(); } return on;
   }
   if (root.document) root.document.addEventListener('visibilitychange', () => { if (C && on) { if (root.document.hidden) C.suspend(); else C.resume(); } });
