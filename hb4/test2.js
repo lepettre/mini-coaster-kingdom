@@ -16,11 +16,11 @@ const solSeq=l=>{const r=HB.solve(l,400,300000);const c=r.sols.filter(s=>s.cente
   await tap('mplay');console.log('nach Spielen',await ov());await tap('hok');
   const play=async seq=>{for(const k of seq.split('')){const cur=await ev(()=>window.__hb.get().sel);if(cur!==k)await tap('p'+k);await tap('build')}await tap('go');for(let k=0;k<300;k++){await sleep(300);if(await ov()==='result')break}await sleep(500);return ev(()=>{const h=window.__hb.get();return{st:h.result.st,ok:h.result.j.success}})};
   console.log('L1',JSON.stringify(await play(solSeq(LV[0]))));
-  await tap('next');await sleep(600);console.log('Level danach',await ev(()=>window.__hb.get().run.level.id));
+  await tap('next');await sleep(600);if(await ov()==='neu')await tap('nok');console.log('Level danach',await ev(()=>window.__hb.get().run.level.id));
   await tap('menu');console.log('menu',await ov());await tap('mlev');console.log('levels hits',await hits());await page.screenshot({path:'out/t2_levels.png'});
   await tap('cnext');await page.screenshot({path:'out/t2_levels2.png'});await tap('lclose');
   await tap('mrnd');console.log('rand hits',await hits());await page.screenshot({path:'out/t2_rand.png'});
-  await tap('rz0');for(let k=0;k<60;k++){await sleep(250);if(await ov()===null)break}
+  await tap('rz0');for(let k=0;k<60;k++){await sleep(250);const o=await ov();if(o===null)break;if(o==='neu'){await tap('nok');break}}
   const rl=await ev(()=>{const r=window.__hb.get().run.level;return{id:r.id,rnd:r.rnd,theme:r.theme,groups:r.groups,par:r.par}});console.log('Zufall',JSON.stringify(rl));
   const seq=await ev(()=>{const r=window.HB.solve(window.__hb.get().run.level,300,200000);const c=r.sols.filter(s=>s.centered);return(c.length?c:r.sols).sort((a,b)=>a.placed-b.placed)[0].seq});
   console.log('Zufall-Fahrt',JSON.stringify(await play(seq)));
