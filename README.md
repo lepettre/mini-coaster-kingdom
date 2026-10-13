@@ -39,5 +39,6 @@ Im Spiel gibt es `window.__hb` (Zustand, Tap-Flächen per ID, Level wählen). Di
 ## Rechtliches
 - **Eigenständiges, nicht kommerzielles Hobbyprojekt.** Es steht in keiner Verbindung zu Herstellern, Verlagen oder Rechteinhabern anderer Spiele oder zu Freizeitparks. Genannte Namen von Fahrgeschäftstypen (Looping, Lifthill usw.) sind Gattungsbegriffe.
 - **Eigene Inhalte.** Code, Pixelgrafiken, Icon und Leveldaten sind für dieses Projekt erstellt; Grafiken entstehen per Programmcode. Es werden keine fremden Bilder, Schriften, Klänge oder Bibliotheken ausgeliefert. Die Node-Pakete in `package.json` dienen nur zum Testen und sind nicht Teil des Spiels.
+- **Musik und Geräusche** werden im Spiel per Programmcode erzeugt (eigene Kompositionen, synthetische Stimmen); es sind keine Aufnahmen oder Klangdateien enthalten.
 - **Datenschutz.** Das Spiel lädt nichts nach, setzt keine Cookies, nutzt keine Analyse- oder Werbedienste und sendet keine Daten. Spielstand und Einstellungen liegen nur im Browser des Geräts (localStorage) und lassen sich über die Browser-Einstellungen löschen. Beim Hosten (z. B. GitHub Pages) verarbeitet der Hoster technisch nötige Zugriffsdaten wie IP-Adressen nach seinen eigenen Datenschutzbestimmungen.
 - **Nutzungsrechte.** © 2026 Jan. Alle Rechte vorbehalten, solange keine Lizenzdatei etwas anderes erlaubt.

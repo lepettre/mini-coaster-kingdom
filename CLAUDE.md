@@ -22,13 +22,14 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 - **Spielstand-Version 2:** Sterne wurden einmalig zurückgesetzt (`saved.v`).
 - **Besucher** bleiben auf dem gepflasterten Stationsplatz (Schlange Tor→Bahnsteig, Zuschauer am Rand).
 - **Zufallsmodus** (`genb.js`) nutzt alle Teile, Grundrisse und Flaggen aus freigespielten Leveln (`randOpts`); Splash nur selten; Fallback weiter `pool.json`. Messen: `node zufalltest.js 24`.
+- **Ton (2026-10-13):** `hb4/sound.js`, komplett per WebAudio erzeugt (keine Aufnahmen/Dateien): eigener Walzer (Bauen/Menü) und Galopp (Fahrt) als Drehorgel, Geräusche (Bauen, Zurück, Lifthill-Kette, Splash, Hängenbleiben, Jubel/Fanfare, Misserfolg), synthetische Stimmen (Schreien, Juchzen, Lachen über Vokal-Formanten). Ton-Knopf oben (aus beim ersten Start, `saved.snd`). Prüfen + Hörprobe: `node soundtest.js` → `out/hoerprobe.wav`. Gemeinfreie Melodien (z. B. „Über den Wellen“) nur mit Notenvorlage ergänzen, nicht aus dem Gedächtnis.
 - **Pflicht-Flaggen:** Level-Feld `flags:[[i,j],…]`; `judge` verlangt jede Flagge (`flagsHit`), Render zeigt rot-weißen Wimpel (grün, wenn befahren), Statuszeile zählt mit.
 - **Varianz Phase 2 (2026-10-12):** Level 1-4 bis 4-6 neu aus `phase2.js` (Plan-Tabelle `PLAN` je Level: Grundriss P1–P4, Gruppe, Pflicht-Teile, Hindernis, Flaggen, Länge). Kapitel 1 ohne Flaggen, Kap. 2: 1 Flagge + Bremse/Booster, Kap. 3: 2 Flaggen + Korkenzieher, Kap. 4: 2–3 Flaggen + Splash. Die Par-Lösung nutzt immer die neuen Teile des Levels. Überlappung der Musterlösungen 0,46 → 0,26, keine doppelten mehr. Ein Level neu erzeugen: `node phase2.js k3-2`.
 
 ## Befehle
 - Einmalig: `npm install`
 - Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
-- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`). Screenshots landen in `hb4/out/`.
+- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`), `node soundtest.js` (Ton). Screenshots landen in `hb4/out/`.
 - Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `vorschau.html` im Projektordner (V1–V3 spielbar, wird mit committet); `node vtest.js` spielt sie durch.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 

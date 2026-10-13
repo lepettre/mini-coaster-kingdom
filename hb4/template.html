@@ -28,6 +28,9 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
 /*UI*/
 </script>
 <script>
+/*SOUND*/
+</script>
+<script>
 const LEVELS=/*LEVELS*/[];const POOL=/*POOL*/[];const STATIONS=/*STATIONS*/{};
 </script>
 <script>
@@ -172,7 +175,7 @@ function buildWin(){
   if(l1)T(b.x+8,sy+3,l1,C.txt);if(l2)T(b.x+8,sy+12,l2,C.txt);
   // Untere Knöpfe
   const by=sy+26,bw1=44,bw2=28;
-  ui.btn('undo',b.x+5,by,bw1,22,{disabled:mode!=='build'||run.placed===0,fn:()=>{HB.undo(run);path=HBR.buildPath(run,false);camManual=false},draw:(x2,y2,w,h,dis)=>{T(x2+5,y2+7,'Zurück',dis?C.dis:C.txt)}});
+  ui.btn('undo',b.x+5,by,bw1,22,{disabled:mode!=='build'||run.placed===0,fn:()=>{HB.undo(run);HBS.sfx('undo');path=HBR.buildPath(run,false);camManual=false},draw:(x2,y2,w,h,dis)=>{T(x2+5,y2+7,'Zurück',dis?C.dis:C.txt)}});
   ui.btn('neu',b.x+5+bw1+3,by,bw2,22,{disabled:mode==='ride',fn:()=>{newRun()},draw:(x2,y2,w,h,dis)=>{T(x2+5,y2+7,'Neu',dis?C.dis:C.txt)}});
   const fx=b.x+5+bw1+3+bw2+3,fw=b.w-(fx-b.x)-5,rdy=(HB.ready(run)||!!run.stall)&&mode==='build';
   ui.btn('go',fx,by,fw,22,{disabled:!rdy,fn:startRide,sel:rdy&&Math.sin(lastT*6)>0,draw:(x2,y2,w,h,dis)=>{const ink=dis?C.dis:C.txt,cx=x2+Math.floor(w/2)-20;ui.fr(cx,y2+6,3,10,ink);ui.fr(cx+3,y2+7,2,8,ink);ui.fr(cx+5,y2+8,2,6,ink);ui.fr(cx+7,y2+9,2,4,ink);ui.fr(cx+9,y2+10,1,2,ink);T(cx+15,y2+7,'FAHRT',ink)}});
@@ -199,6 +202,7 @@ function topBar(){
   ui.fr(0,0,Wu,16,C.ink);ui.fr(0,0,Wu,15,C.title);for(let i=0;i<Wu;i+=2){ui.px(i,14,C.title2);ui.px(i+1,13,C.title2)}
   T(5,4,LEVEL.rnd?LEVEL.name:LEVEL.chapter+'-'+((lvIdx()%6)+1)+' '+LEVEL.name,C.white);
   ui.btn('menu',Wu-33,2,13,12,{fn:()=>{overlay='menu'},draw:(x2,y2)=>{[[3,3],[7,3],[3,7],[7,7]].forEach(q=>ui.fr(x2+q[0]-1,y2+q[1]-1,3,3,C.txt))}});
+  ui.btn('snd',Wu-65,2,13,12,{fn:()=>{saved.snd=HBS.setOn(!HBS.isOn());store.set('hb4',saved)},draw:(x2,y2)=>{const c=C.txt;ui.fr(x2+2,y2+4,2,4,c);ui.fr(x2+4,y2+3,1,6,c);ui.fr(x2+5,y2+2,1,8,c);if(HBS.isOn()){ui.px(x2+7,y2+4,c);ui.px(x2+7,y2+7,c);ui.fr(x2+8,y2+5,1,2,c);ui.fr(x2+9,y2+3,1,6,c)}else{ui.line(x2+7,y2+3,x2+10,y2+8,'#FF9A80');ui.line(x2+10,y2+3,x2+7,y2+8,'#FF9A80')}}});
   ui.btn('tipp',Wu-49,2,13,12,{disabled:mode!=='build',fn:doHint,draw:(x2,y2,w2,h2,dis)=>{bulb(x2+2,y2+1,!dis)}});
   ui.btn('help',Wu-17,2,13,12,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+4,y2+2,'?',C.txt)}});
 }
@@ -288,17 +292,17 @@ function busyWin(){const w=Math.min(150,Wu-20),p=dialogBase(w,38,'Bitte warten')
 
 // ---------- Ablauf ----------
 function vib(){try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}}
-function buildPiece(){if(mode!=='build'||!sel)return;const g=HB.ghost(run,sel);if(!g.valid)return;HB.place(run,g);vib();path=HBR.buildPath(run,false);camManual=false}
+function buildPiece(){if(mode!=='build'||!sel)return;const g=HB.ghost(run,sel);if(!g.valid)return;HB.place(run,g);vib();HBS.sfx('build');path=HBR.buildPath(run,false);camManual=false}
 function startRide(){
   if(!(HB.ready(run)||run.stall)||mode!=='build')return;
   ridePath=HBR.buildPath(run,true);rideSpan=pieceSpans(ridePath);swing=null;stallS=null;if(run.stall){const ks=ridePath.S.map((e,k)=>e.pi===run.stall.idx?k:-1).filter(k=>k>=0);if(ks.length){const a=ridePath.D[ks[0]],b=ridePath.D[ks[ks.length-1]];stallS=a+run.stall.f*(b-a)}}mode='ride';sel=null;rideS=ridePath.startS;cars=[rideS,rideS-.38,rideS-.76];partial={t:0,n:0};partialK=run.head.k;maxPi=0;camManual=false;
 }
 function finishRide(){
   mode='result';partial=null;partialK=null;const j=HB.judge(run),st=Math.min(HB.stars(run,LEVEL.par),hintUsed?2:3);if(!LEVEL.rnd&&st>stars_(LEVEL.id)){saved.s[LEVEL.id]=st;store.set('hb4',saved)}
-  result={j,st};setTimeout(()=>{overlay='result'},500);
+  result={j,st};HBS.sfx(j.success&&st>0?'win'+st:'fail',.3);setTimeout(()=>{overlay='result'},500);
 }
 function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*(Wc/r.width),(e.clientY-r.top)*(Hc/r.height)]}
-cv.addEventListener('pointerdown',e=>{const p=pos(e),h=ui.press(p[0]/U,p[1]/U);if(!h&&!overlay&&p[1]>=lay.areaTop&&p[1]<=lay.areaBottom){drag={x:p[0],y:p[1],cx:cam.x,cy:cam.y,moved:false};try{cv.setPointerCapture(e.pointerId)}catch(_){}}});
+cv.addEventListener('pointerdown',e=>{if(saved.snd&&!HBS.isOn())HBS.setOn(true);const p=pos(e),h=ui.press(p[0]/U,p[1]/U);if(!h&&!overlay&&p[1]>=lay.areaTop&&p[1]<=lay.areaBottom){drag={x:p[0],y:p[1],cx:cam.x,cy:cam.y,moved:false};try{cv.setPointerCapture(e.pointerId)}catch(_){}}});
 cv.addEventListener('pointermove',e=>{if(!drag)return;const p=pos(e);if(Math.abs(p[0]-drag.x)+Math.abs(p[1]-drag.y)>4)drag.moved=true;if(drag.moved){cam.x=drag.cx-(p[0]-drag.x);cam.y=drag.cy-(p[1]-drag.y);camManual=true;clampCam()}});
 cv.addEventListener('pointerup',e=>{const p=pos(e);ui.release(p[0]/U,p[1]/U);drag=null});
 cv.addEventListener('pointercancel',()=>{ui.release(-9,-9);drag=null});
@@ -318,12 +322,17 @@ function swingStep(dt){const sw=swing,n=6,h=dt/n;sw.t+=dt;for(let k=0;k<n;k++){c
   if(e<=.004&&sw.t>.15){sw.dir=-sw.dir;sw.E=q.z+.004}v=Math.max(v,.06);sw.s+=sw.dir*v*h;sw.E-=.3*v*h;sw.v=sw.dir*v;
   if(sw.s<ridePath.startS){sw.s=ridePath.startS;sw.dir=1;sw.E=Math.min(sw.E,q.z+(sw.E-q.z)*.3)}if(sw.s>stallS){sw.s=stallS;sw.dir=-1}}
   if(sw.t>7||(sw.t>2&&sw.E-sw.lo<.05))sw.end=true}
+// Fahrgeräusche: Kette am Lifthill, Schreie/Juchzen/Lachen an Abfahrten, Looping, Korkenzieher, Booster, Gischt beim Splash
+let sndPi=-1;function rideSound(){if(!cars||!ridePath)return;const q=HBR.posAt(ridePath,rideS);HBS.chain(q.ty==='T'&&!swing);if(q.pi===sndPi)return;const prev=run.track[sndPi];sndPi=q.pi;const p=run.track[q.pi];if(!p)return;
+  if(p.type==='B'&&(p.kIn||0)>1.6)HBS.sfx(Math.random()<.6?'scream':'juchz');else if(p.type==='L'||(p.type==='C'&&p.half===0))HBS.sfx('scream');else if(p.type==='V')HBS.sfx('juchz');else if(p.type==='W')HBS.sfx('splash');
+  else if(prev&&(prev.type==='L'||prev.type==='C'||prev.type==='W')&&Math.random()<.6)HBS.sfx('laugh',.1)}
 function frame(now){
   requestAnimationFrame(frame);
   const minDt=mode==='ride'?40:75;if(now-lastT*1000<minDt)return;const dt=Math.min(.1,(now-lastT*1000)/1000);lastT=now/1000;
+  HBS.music(mode==='ride'?'ride':'calm');if(mode==='ride'&&cars)rideSound();else sndPi=-1;
   if(mode==='ride'&&cars){
     if(stallS!==null){
-      if(!swing){rideS+=dt*rideSpeed(rideS)*Math.min(1,.12+(stallS-rideS)/.9);if(rideS>=stallS-.015){rideS=stallS;swing=swingStart()}}
+      if(!swing){rideS+=dt*rideSpeed(rideS)*Math.min(1,.12+(stallS-rideS)/.9);if(rideS>=stallS-.015){rideS=stallS;swing=swingStart();HBS.sfx('stall')}}
       else{swingStep(dt);rideS=swing.s}
       cars=[rideS,rideS-.38,rideS-.76];
       if(swing&&swing.end){cars=null;stallInfo={kind:run.stall.kind};swing=null;stallS=null;newRun();overlay='stall'}

@@ -4,7 +4,7 @@ VZ=len(sys.argv)>1 and sys.argv[1]=='varianz'
 # python3 build.py teile -> dist/teile-test.html mit dem Testlevel aus teile_test.json
 TT=len(sys.argv)>1 and sys.argv[1]=='teile'
 t=open('template.html').read()
-t=t.replace('/*LOGIC*/',open('logic.js').read()).replace('/*GENB*/',open('genb.js').read()).replace('/*RENDER*/',open('render.js').read()).replace('/*UI*/',open('ui.js').read())
+t=t.replace('/*LOGIC*/',open('logic.js').read()).replace('/*GENB*/',open('genb.js').read()).replace('/*RENDER*/',open('render.js').read()).replace('/*UI*/',open('ui.js').read()).replace('/*SOUND*/',open('sound.js').read())
 lv=json.load(open('varianz_test.json' if VZ else 'teile_test.json' if TT else 'levels24.json'))
 # Vorschau: Testvarianten plus Testlevel der neuen Teile
 if VZ: lv=lv+json.load(open('teile_test.json'))
