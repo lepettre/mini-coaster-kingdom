@@ -78,7 +78,9 @@
   // ---------- Strecke ----------
   // Korkenzieher-Form: lat = seitlicher Radius, up = Höhe der Drehung, hill = zusätzlicher Bogen nach oben,
   // spine = Mittelrohr, shade = Schienen-Unterseite dunkel, sup = Stützen nur am aufrechten Teil
-  const CK = { lat: .38, up: .75, hill: 0, spine: false, shade: false, sup: false };
+  // r = Abstand Schiene–Drehachse in Kacheln (klein = Heartline Roll, groß = Korkenzieher), hill = Bogen nach oben (Ebenen);
+  // Höhe zählt in Ebenen, 1 Kachel = CKZ Ebenen, damit die Bahn ein echter Kreis um die Achse ist
+  const CKZ = 2, CK = { r: .38, hill: 0, ease: 'alt', spine: false, shade: false, sup: false };
   function setCK(o) { Object.assign(CK, o); }
   const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
   const LOOP = (function () {
@@ -100,7 +102,7 @@
     } else {
       const n = p.type === 'L' ? 72 : p.type === 'C' ? 24 : 10, perp = [-di[1], di[0]];
       // Korkenzieher über zwei Felder: Drehung um die Längsachse (rot 0..2π), Mitte kreist mit Radius CKR um die Achse
-      if (p.type === 'C') { for (let k = 0; k <= n; k++) { const t = ((p.half || 0) + k / n) / 2, th = 2 * Math.PI * t - Math.sin(2 * Math.PI * t), lat = CK.lat * Math.sin(th), up = CK.up * (1 - Math.cos(th)) / 2 * 2 + CK.hill * Math.sin(Math.PI * t); out.push([E[0] + di[0] * k / n + perp[0] * lat, E[1] + di[1] * k / n + perp[1] * lat, p.z0 + up, th, perp]); } return out; }
+      if (p.type === 'C') { for (let k = 0; k <= n; k++) { const t = ((p.half || 0) + k / n) / 2, e = CK.ease === 'alt' ? t - Math.sin(2 * Math.PI * t) / (2 * Math.PI) : t * t * t * (t * (6 * t - 15) + 10), th = 2 * Math.PI * e, lat = CK.r * Math.sin(th), up = CKZ * CK.r * (1 - Math.cos(th)) + CK.hill * Math.sin(Math.PI * t); out.push([E[0] + di[0] * k / n + perp[0] * lat, E[1] + di[1] * k / n + perp[1] * lat, p.z0 + up, th, perp]); } return out; }
       for (let k = 0; k <= n; k++) {
         if (p.type === 'L') { const Lq = LOOP[k]; const lt = LDEL * smt(k / n); out.push([E[0] + di[0] * Lq[0] + di[1] * lt, E[1] + di[1] * Lq[0] + di[0] * lt, p.z0 + Lq[1], Lq[2], Lq[3], k / n]); continue; }
         const t = k / n; let along = t, up = 0, lat = 0;
@@ -295,6 +297,17 @@
     rail(.1); rail(.9);
   }
   // Lamellen auf einem geraden Feld in Fahrtrichtung (Bremse gelb/schwarz, Booster orange/blau)
+  // Korkenzieher-Abschnitt in echtem 3D: zwei Schienen und Mittelrohr drehen um die Fahrtachse (Seitenvektor cp, Winkel rot),
+  // Verstrebungen Schiene–Rohr; gezeichnet von hinten nach vorn (Tiefe x+y+0,41·z), Schienen-Unterseite dunkel, wenn kopfüber
+  function drawCorkSeg(c, P, a, b, tc, k) {
+    const g = .115, hs = .12, fr = q => { const cs = Math.cos(q.rot), sn = Math.sin(q.rot), s = a.cp; return { rail: sg => [q.x + s[0] * g * sg * cs, q.y + s[1] * g * sg * cs, q.z + CKZ * g * sg * sn], sp: [q.x + s[0] * sn * hs, q.y + s[1] * sn * hs, q.z - CKZ * cs * hs], cs }; };
+    const fa = fr(a), fb = fr(b.rot === undefined ? Object.assign({}, b, { rot: a.rot }) : b), dep = (p, q) => (p[0] + p[1] + q[0] + q[1]) / 2 + .41 * (p[2] + q[2]) / 2;
+    const els = [{ d: dep(fa.sp, fb.sp), f: () => { const s0 = P(...fa.sp), s1 = P(...fb.sp); pl(c, s0[0], s0[1] + 1, s1[0], s1[1] + 1, R.stone[0], 3); pl(c, s0[0], s0[1], s1[0], s1[1], R.stone[2], 2); pl(c, s0[0], s0[1] - 1, s1[0], s1[1] - 1, R.stone[3], 1);
+      if (k % 2 === 0) [-1, 1].forEach(sg => { const r = P(...fa.rail(sg)); pl(c, s0[0], s0[1], r[0], r[1], R.stone[1], 1); }); } }];
+    [-1, 1].forEach(sg => { const r0 = fa.rail(sg), r1 = fb.rail(sg); els.push({ d: dep(r0, r1), f: () => { const p0 = P(...r0), p1 = P(...r1), rc = CK.shade && fa.cs < 0 ? [tc[0], tc[0], tc[1], tc[1], tc[2]] : tc;
+      pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, rc[0], 1); pl(c, p0[0], p0[1] + 1, p1[0], p1[1] + 1, rc[1], 1); pl(c, p0[0], p0[1], p1[0], p1[1], rc[2], 1); pl(c, p0[0], p0[1] - 1, p1[0], p1[1] - 1, rc[3], 1); } }); });
+    els.sort((x, y) => x.d - y.d).forEach(e => e.f());
+  }
   function drawFins(c, P, p, cols) {
     const d = DV[p.din], z = p.z0 + .1;
     for (let k = 0; k < 5; k++) { const a = .14 + k * .18; if (d[0]) box(c, P, p.i + (d[0] > 0 ? a : 1 - a - .08), p.j + .4, z, .08, .2, .09, cols[k % 2], null); else box(c, P, p.i + .4, p.j + (d[1] > 0 ? a : 1 - a - .08), z, .2, .08, .09, cols[k % 2], null); }
@@ -350,12 +363,13 @@
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
       let dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy); if (l > 1e-4) { dx /= l; dy /= l; pn = [-dy, dx]; } let nx = pn[0], ny = pn[1]; if (a.ty === 'L' && a.ev) { nx = -a.ev[1]; ny = a.ev[0]; }
       items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ls || 0) * .03, f: c => {
-        if (a.sup && a.z > .25 && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .85)) {
+        if (a.sup && a.z > .25 && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
           const top = a.z - .05;
           [[-1, R.stone[2]], [1, R.stone[4]]].forEach(cc => { const g0 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], 0), g1 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], top); pl(c, g0[0], g0[1], g1[0], g1[1], cc[1], 2); });
           for (let z = 0; z < top - .2; z += .75) { const zt = Math.min(top, z + .75), q0 = P(a.x - nx * .12, a.y - ny * .12, z), q1 = P(a.x + nx * .12, a.y + ny * .12, zt), q2 = P(a.x + nx * .12, a.y + ny * .12, z), q3 = P(a.x - nx * .12, a.y - ny * .12, zt); pl(c, q0[0], q0[1], q1[0], q1[1], R.stone[3], 1); pl(c, q2[0], q2[1], q3[0], q3[1], R.stone[3], 1); const m0 = P(a.x - nx * .12, a.y - ny * .12, zt), m1 = P(a.x + nx * .12, a.y + ny * .12, zt); pl(c, m0[0], m0[1], m1[0], m1[1], R.stone[1], 1); }
           const f0 = P(a.x, a.y, 0); rect(c, f0[0] - 5, f0[1] - 1, 11, 3, R.stone[1]); rect(c, f0[0] - 5, f0[1] - 1, 11, 1, R.stone[4]); rect(c, f0[0] - 4, f0[1], 1, 1, R.base[3]); rect(c, f0[0] + 4, f0[1], 1, 1, R.base[3]);
         }
+        if (a.ty === 'C' && a.rot !== undefined && (CK.spine || CK.shade)) { drawCorkSeg(c, P, a, b, tc, k); return; }
         const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
         if (CK.spine && a.ty === 'C' && a.rot !== undefined) { const nz = (r, cp) => [-cp[0] * Math.sin(r) * .13, -cp[1] * Math.sin(r) * .13, Math.cos(r) * .26], na = nz(a.rot, a.cp), nb = nz(b.rot === undefined ? a.rot : b.rot, a.cp), s0 = P(a.x - na[0], a.y - na[1], a.z - na[2]), s1 = P(b.x - nb[0], b.y - nb[1], b.z - nb[2]); pl(c, s0[0], s0[1] + 1, s1[0], s1[1] + 1, R.stone[0], 4); pl(c, s0[0], s0[1], s1[0], s1[1], R.stone[2], 2); }
         pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
