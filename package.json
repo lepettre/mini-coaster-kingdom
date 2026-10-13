@@ -1,7 +1,7 @@
 {
   "name": "mini-coaster-kingdom",
   "private": true,
-  "description": "Mini Coaster Kingdom – Puzzle-Spiel, gebaut zu einer einzelnen HTML-Datei",
+  "description": "Experimentelles, nicht kommerzielles Achterbahn-Puzzle im Browser – eine einzelne HTML-Datei, Grafik und Ton per Code erzeugt",
   "scripts": {
     "build": "cd hb4 && python3 build.py",
     "test": "npm run build && cd hb4 && node test3.js && node stalltest.js"
@@ -10,5 +10,6 @@
     "@napi-rs/canvas": "^0.1.53",
     "@sparticuz/chromium": "^131.0.0",
     "puppeteer-core": "^23.0.0"
-  }
+  },
+  "license": "UNLICENSED"
 }

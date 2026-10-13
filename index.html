@@ -807,11 +807,12 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     for (let i = 0; i < len; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; d[i] = s / 0x3fffffff - 1; } NOISE = b;
   }
   function env(g, t, a, d, peak, sus, rel, end) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.linearRampToValueAtTime(peak * sus, t + a + d); g.gain.setValueAtTime(peak * sus, end); g.gain.linearRampToValueAtTime(0, end + rel); }
-  // Drehorgel-Ton: zwei leicht verstimmte Rechtecke + Sägezahn eine Oktave tiefer, Vibrato, Tiefpass
+  // Drehorgel-Ton: Rechteck + leise Oktave darüber, sanftes Vibrato, Tiefpass
   function organ(t, m, dur, vol, dest) {
     const f = mtof(m), g = C.createGain(), lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = .7; g.connect(lp); lp.connect(dest || MUS);
-    const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 5.5; lg.gain.value = f * .006; lfo.connect(lg);
-    [['square', f, .5, 0], ['square', f * 1.004, .35, 0], ['sawtooth', f / 2, .25, 0]].forEach(o => { const os = C.createOscillator(), og = C.createGain(); os.type = o[0]; os.frequency.value = o[1]; og.gain.value = o[2]; lg.connect(os.frequency); os.connect(og); og.connect(g); os.start(t); os.stop(t + dur + .15); });
+    const lfo = C.createOscillator(), lg = C.createGain(); lfo.frequency.value = 5.5; lg.gain.value = f * .004; lfo.connect(lg);
+    // eine Stimme ohne Verstimmung (vorher zwei leicht verstimmte Pfeifen = Schwebung, klang doppelt), Oktave darüber leise für den Orgelglanz
+    [['square', f, .55, 0], ['triangle', f * 2, .18, 0]].forEach(o => { const os = C.createOscillator(), og = C.createGain(); os.type = o[0]; os.frequency.value = o[1]; og.gain.value = o[2]; lg.connect(os.frequency); os.connect(og); og.connect(g); os.start(t); os.stop(t + dur + .15); });
     lfo.start(t); lfo.stop(t + dur + .15); env(g, t, .01, .08, vol, .7, .08, t + dur * .92);
   }
   function bass(t, m, dur, vol) { const os = C.createOscillator(), g = C.createGain(); os.type = 'triangle'; os.frequency.value = mtof(m); os.connect(g); g.connect(MUS); env(g, t, .005, .1, vol, .5, .05, t + dur * .7); os.start(t); os.stop(t + dur + .1); }
