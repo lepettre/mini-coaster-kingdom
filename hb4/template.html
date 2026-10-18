@@ -125,6 +125,8 @@ const BADGES=[['erste','Erste Fahrt','Eine Fahrt geschafft.'],['loop','Kopfüber
  ['spar','Sparsam','Weniger Teile als Par.'],['k1','Wiese gemeistert','Kapitel 1 mit 3 Sternen.'],['k2','Winter gemeistert','Kapitel 2 mit 3 Sternen.'],
  ['k3','Wüste gemeistert','Kapitel 3 mit 3 Sternen.'],['k4','Küste gemeistert','Kapitel 4 mit 3 Sternen.'],['zufall','Zufallsprofi','5 Zufallsrätsel gelöst.'],
  ['runden','Zuschauer','3 Runden zugeschaut.']];
+// Kreuzungen gibt es erst in Leveln mit cross:true (noch keine); bis dahin bleiben Erklärung und Abzeichen verborgen
+const CROSS=()=>LEVELS.some(l=>l.cross),BADGE=()=>BADGES.filter(b=>b[0]!=='kreuz'||CROSS());
 let toastQ=[],toastT=0;
 function award(id){if(saved.ab.includes(id))return;saved.ab.push(id);store.set('hb4',saved);const b=BADGES.find(x=>x[0]===id);if(b){toastQ.push(b[1]);HBS.sfx('win1',.9)}}
 function checkBadges(j,st){if(!j.success)return;const ty=new Set(run.track.map(p=>p.type));award('erste');if(ty.has('L'))award('loop');if(ty.has('C'))award('kork');if(ty.has('W'))award('nass');
@@ -134,8 +136,8 @@ function checkBadges(j,st){if(!j.success)return;const ty=new Set(run.track.map(p
 function medal(x,y,on){const g=on?['#F2C12E','#FFE27A','#8A6A00']:['#6B5A55','#8A7A75','#3A2A26'];ui.fr(x+5,y,4,7,on?'#D8312B':'#4A3A36');ui.fr(x+11,y,4,7,on?'#2F7BC8':'#4A3A36');
   ui.fr(x+5,y+6,10,12,g[2]);ui.fr(x+4,y+8,12,8,g[2]);ui.fr(x+6,y+7,8,10,g[0]);ui.fr(x+5,y+9,10,6,g[0]);ui.fr(x+7,y+8,3,2,g[1]);ui.fr(x+9,y+10,2,4,g[2])}
 function badgeWin(){
-  const w=Math.min(184,Wu-6),h=24+BADGES.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Abzeichen '+saved.ab.length+' / '+BADGES.length);
-  BADGES.forEach((b,n)=>{const yy=y+15+n*22,on=saved.ab.includes(b[0]);medal(x+5,yy,on);T(x+29,yy+1,b[1],on?C.yel:'#B89A90');T(x+29,yy+11,b[2],on?C.txt:'#B89A90')});
+  const w=Math.min(184,Wu-6),h=24+BADGE().length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Abzeichen '+saved.ab.length+' / '+BADGE().length);
+  BADGE().forEach((b,n)=>{const yy=y+15+n*22,on=saved.ab.includes(b[0]);medal(x+5,yy,on);T(x+29,yy+1,b[1],on?C.yel:'#B89A90');T(x+29,yy+11,b[2],on?C.txt:'#B89A90')});
   ui.btn('bok',x+w-52,y+h-19,46,15,{fn:()=>{overlay='menu'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});
 }
 function toast(){if(!toastQ.length)return;if(!toastT)toastT=lastT+3;if(lastT>toastT){toastQ.shift();toastT=0;return}
@@ -230,7 +232,7 @@ function topBar(){
   ui.btn('tipp',Wu-49,2,13,12,{disabled:mode!=='build',fn:doHint,draw:(x2,y2,w2,h2,dis)=>{bulb(x2+2,y2+1,!dis)}});
   ui.btn('help',Wu-17,2,13,12,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+4,y2+2,'?',C.txt)}});
 }
-function dialogBase(w,h,title,low){const x=Math.floor((Wu-w)/2),y=low?Math.floor(Hc/U)-h-4:Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
+function dialogBase(w,h,title){const x=Math.floor((Wu-w)/2),y=Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
 // ---------- Erklärungen: neue Elemente beim ersten Auftreten, Übersicht in der Hilfe ----------
 const INFO={G:['Gerade','Kostet kaum Schwung.'],L:['Kurve','Gibt Aufregung,','etwas Übelkeit.'],A:['Anstieg','Geht nur mit Schwung.'],B:['Abfahrt','Gibt Schwung','und Aufregung.'],
  P:['Looping','Braucht viel Schwung.','Viel Aufregung, Übelkeit.'],H:['Bremse','Senkt den Schwung,','beruhigt die Fahrt.'],V:['Booster','Gibt Schwung, auch','auf flacher Strecke.'],
@@ -242,7 +244,7 @@ function infoIcon(k,x,y){
   if(k==='Z'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+2,y+3,2,17,'#5A5F6B');ui.fr(x+16,y+3,2,17,'#5A5F6B');for(let q=0;q<6;q++)for(let r=0;r<2;r++)ui.fr(x+4+q*2,y+4+r*2,2,2,(q+r)%2?'#FFFFFF':'#1B2030');ui.fr(x+8,y+12,4,8,'#D8312B');return}
   if(k==='X'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+8,y,4,20,'#8A2F28');ui.fr(x+9,y,2,20,'#D8564A');for(let q=1;q<20;q+=3)ui.fr(x+7,y+q,6,1,'#6B6F7A');ui.fr(x,y+11,20,3,'#1B2030');ui.fr(x,y+10,20,2,'#9AA0AA');ui.fr(x,y+6,20,4,'#8A2F28');ui.fr(x,y+7,20,2,'#D8564A');return}
   pieceIcon(k==='R'?'L':k,x,y)}
-const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).concat(LEVEL.rnd||lvIdx()>=LEVELS.findIndex(l=>l.id==='k2-5')?['X']:[]).filter(k=>!saved.seen.includes(k)):[];
+const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).concat(LEVEL.cross?['X']:[]).filter(k=>!saved.seen.includes(k)):[];
 function afterHelp(){overlay=neuList().length?'neu':null}
 function neuWin(){
   const L2=neuList().slice(0,3),w=Math.min(176,Wu-10),h=22+L2.length*34+20,p=dialogBase(w,h,'Neu in diesem Level'),x=p.x,y=p.y;
@@ -250,7 +252,7 @@ function neuWin(){
   ui.btn('nok',x+w-44,y+h-20,38,15,{fn:()=>{L2.forEach(k=>saved.seen.push(k));store.set('hb4',saved);overlay=neuList().length?'neu':null},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function teileWin(){
-  const ks=['Z','F','X','G','L','A','B','P','H','V','W','C'],w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
+  const ks=['Z','F'].concat(CROSS()?['X']:[],['G','L','A','B','P','H','V','W','C']),w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
   ks.forEach((k,n)=>{const yy=y+15+n*22;infoIcon(k,x+5,yy);T(x+29,yy+1,INFO[k][0],C.yel);T(x+29,yy+11,KURZ[k],C.txt)});
   ui.btn('tok',x+w-52,y+h-19,46,15,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});
 }
@@ -264,7 +266,7 @@ function helpWin(){
   ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{saved.help=1;store.set('hb4',saved);afterHelp()},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function resultWin(){
-  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung',lap),x=p.x,y=p.y;
+  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung'),x=p.x,y=p.y;
   const a=exc(run.thrill),u=nau(run.nausea);
   T(x+6,y+16,'Aufregung',C.txt);T(x+76,y+16,fmt(a),C.txt);T(x+100,y+16,word(a),C.txt);
   T(x+6,y+26,'Übelkeit',C.txt);T(x+76,y+26,fmt(u),C.txt);T(x+100,y+26,word(u),C.txt);
@@ -291,7 +293,7 @@ function menuWin(){
   menuBtn('mplay',x,y0+66,w,inGame?'WEITER':'SPIELEN',()=>{if(inGame)overlay=null;else loadLevel(n)},inGame?(LEVEL.rnd?LEVEL.name:LEVEL.chapter+'-'+((lvIdx()%6)+1)+' '+LEVEL.name):cur.chapter+'-'+((n%6)+1)+' '+cur.name);
   menuBtn('mlev',x,y0+98,w,'LEVEL',()=>{overlay='levels';chap=Math.max(0,Math.floor(Math.max(0,inGame&&!LEVEL.rnd?lvIdx():n)/6))},'24 Level in 4 Kapiteln');
   menuBtn('mrnd',x,y0+130,w,'ZUFALL',()=>{overlay='rand'},'Immer neue Rätsel');
-  menuBtn('mbadge',x,y0+162,w,'ABZEICHEN',()=>{overlay='badges'},saved.ab.length+' von '+BADGES.length);
+  menuBtn('mbadge',x,y0+162,w,'ABZEICHEN',()=>{overlay='badges'},saved.ab.length+' von '+BADGE().length);
   menuBtn('mhelp',x,y0+194,w,'HILFE',()=>{overlay='help'});
   const st=totalStars()+' / '+LEVELS.length*3;star(Math.floor(Wu/2)-HBUI.textW(st)/2-16,y0+226,true);T(Math.floor(Wu/2)-Math.floor(HBUI.textW(st)/2)+2,y0+229,st,C.white,C.ink);
   // Fußzeile: Hinweis auf Hobbyprojekt und Datenschutz (keine Daten verlassen das Gerät)

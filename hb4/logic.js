@@ -41,7 +41,7 @@
 
   // Kreuzung: eine flache Gerade darf rechtwinklig über oder unter genau eine andere flache Gerade, mit mindestens 2 Ebenen Abstand
   function crossOK(run, K, h, i, j, dir) {
-    if (K.type !== 'G') return false;
+    if (K.type !== 'G' || !(run.level && run.level.cross)) return false;
     const here = run.track.filter(p => p.i === i && p.j === j).concat(run.ret.filter(p => p.i === i && p.j === j));
     if (here.length !== 1) return false; const o = here[0];
     if (o.type !== 'G' || o.z0 !== o.z1 || o.din % 2 === dir % 2 || Math.abs(o.z0 - h.z) < 2) return false;

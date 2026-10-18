@@ -12,7 +12,7 @@ Du baust in einem kleinen Freizeitpark eine Achterbahn – Teil für Teil, vom L
 - **Gäste:** Kinder, Familien, Teenager und Thrill-Fans wollen jeweils eine andere Mischung aus Aufregung und Übelkeit.
 - **Physik:** Der Zug braucht Schwung. Abfahrten geben Schwung, Anstiege und Kurven kosten ihn; ein Looping braucht viel davon. Wer zu wenig hat, bleibt hängen und rollt zurück.
 - **Teile:** Gerade, Kurven, Anstieg, Abfahrt, Looping, Bremse, Booster, Splash (durch einen Teich) und Korkenzieher.
-- **Rätsel:** Hindernisse, begrenzte Teile und rot-weiße Pflicht-Flaggen, über die die Strecke führen muss. Geraden dürfen sich mit Höhenabstand kreuzen. Bis zu drei Sterne pro Level, dazu 13 Abzeichen.
+- **Rätsel:** Hindernisse, begrenzte Teile und rot-weiße Pflicht-Flaggen, über die die Strecke führen muss. Bis zu drei Sterne pro Level, dazu Abzeichen.
 - **Umfang:** 24 Level in 4 Landschaften (Wiese, Winter, Wüste, Küste) und ein Zufallsmodus, der neue Rätsel aus allem erzeugt, was schon freigespielt ist.
 - **Fahrt:** Gäste reagieren mit Sprechblasen; nach einer erfolgreichen Fahrt dreht der Zug weiter seine Runden.
 - **Hilfe:** Tipp-Knopf, Erklärungen beim ersten Auftreten neuer Teile, Übersicht aller Teile.

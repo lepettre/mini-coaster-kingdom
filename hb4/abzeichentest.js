@@ -12,7 +12,7 @@ const puppeteer=require('puppeteer-core');const sleep=ms=>new Promise(r=>setTime
  await page.screenshot({path:'out/abz_toast.png',clip:{x:0,y:0,width:390,height:120}});
  for(let k=0;k<120&&!(await ev(()=>window.__hb.badges().ab.includes('runden')));k++)await sleep(500);b=await ev(()=>window.__hb.badges());if(!b.ab.includes('runden'))fail.push('Zuschauer fehlt nach 3 Runden');
  const li=LV.findIndex(l=>l.sols.some(s=>s.includes('P')));await ride(li,LV[li].sols.find(s=>s.includes('P')));b=await ev(()=>window.__hb.badges());if(!b.ab.includes('loop'))fail.push('Kopfüber fehlt ('+LV[li].id+')');
- const k5=LV.findIndex(l=>l.id==='k2-5');await ride(k5,'GGLBBLLABGBR');b=await ev(()=>window.__hb.badges());const ok5=await ev(()=>window.__hb.st().ok);if(ok5&&!b.ab.includes('kreuz'))fail.push('Brückenbau fehlt');
+ const k5=LV.findIndex(l=>l.id==='k2-5');await ev(i=>{LEVELS[i].cross=true},k5);await ride(k5,'GGLBBLLABGBR');b=await ev(()=>window.__hb.badges());const ok5=await ev(()=>window.__hb.st().ok);if(ok5&&!b.ab.includes('kreuz'))fail.push('Brückenbau fehlt');
  await ev(()=>window.__hb.close());await tap('menu');await tap('mbadge');await sleep(300);await page.screenshot({path:'out/abz_fenster.png'});await tap('bok');
  const saved=await ev(()=>JSON.parse(localStorage.getItem('hb4')).ab);if(saved.length!==b.ab.length)fail.push('nicht gespeichert');
  console.log('Abzeichen',b.ab.join(','),'| Kreuzungsfahrt erfolgreich:',ok5,'| Fehler:',fail.join('; ')||'keine','| errors',errs.join('|')||'none');
