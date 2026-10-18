@@ -1,5 +1,5 @@
 // Tipp-Knopf: in jedem Level nur nach Tipps bauen (tippen -> BAUEN) bis zum geschlossenen Kreis, dann fahren.
-// Erwartet: nie "Keine Antwort", Fahrt erfolgreich (mit Tipp höchstens 2 Sterne). Dazu ein Fall mit falschem ersten Teil.
+// Erwartet: nie "Kein Tipp gefunden", Fahrt erfolgreich (mit Tipp höchstens 2 Sterne). Dazu ein Fall mit falschem ersten Teil.
 const chromium=require('@sparticuz/chromium').default||require('@sparticuz/chromium');const puppeteer=require('puppeteer-core');const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const LV=JSON.parse(require('fs').readFileSync('levels24.json'));
 (async()=>{const b=await puppeteer.launch({args:[...chromium.args,'--no-sandbox'],executablePath:await chromium.executablePath(),headless:'shell'});const res=[],errs=[];
