@@ -65,6 +65,15 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   // Splash (W) darf auf Teichfelder, alles andere nicht
   function occupied(run, i, j, water) { return run.track.some(p => p.i === i && p.j === j) || run.blocked.some(p => p.i === i && p.j === j && !(water && run.pond && run.pond.has(i + ',' + j))); }
 
+  // Kreuzung: eine flache Gerade darf rechtwinklig über oder unter genau eine andere flache Gerade, mit mindestens 2 Ebenen Abstand
+  function crossOK(run, K, h, i, j, dir) {
+    if (K.type !== 'G') return false;
+    const here = run.track.filter(p => p.i === i && p.j === j).concat(run.ret.filter(p => p.i === i && p.j === j));
+    if (here.length !== 1) return false; const o = here[0];
+    if (o.type !== 'G' || o.z0 !== o.z1 || o.din % 2 === dir % 2 || Math.abs(o.z0 - h.z) < 2) return false;
+    const isRet = run.ret.some(p => p.i === i && p.j === j);
+    return !run.blocked.some(b => b.i === i && b.j === j) || isRet && run.blocked.filter(b => b.i === i && b.j === j).length === 1;
+  }
   function ghost(run, kind) {
     const K = KINDS[kind], h = run.head, n = run.n;
     const i = h.i + DV[h.dir][0], j = h.j + DV[h.dir][1];
@@ -77,7 +86,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     if (run.stall) { g.valid = false; g.reason = 'Zug steht schon'; }
     else if ((run.inv[kind] || 0) <= 0) { g.valid = false; g.reason = 'Keine mehr'; }
     else if (out(i, j) || out(i2, j2)) { g.valid = false; g.reason = 'Rand des Parks'; }
-    else if (occupied(run, i, j, K.type === 'W') || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Feld belegt'; }
+    else if ((occupied(run, i, j, K.type === 'W') && !(g.cross = crossOK(run, K, h, i, j, h.dir))) || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Feld belegt'; }
     else if (K.type === 'W' && !run.pond.has(i + ',' + j)) { g.valid = false; g.reason = 'Nur auf einem Teichfeld'; }
     else if (K.type === 'W' && h.z !== 0) { g.valid = false; g.reason = 'Nur am Boden'; }
     else if (z1 < 0) { g.valid = false; g.reason = 'Schon am Boden'; }
@@ -101,6 +110,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
       case 'W': t = 2 + .5 * v; break;
     }
     if (h.last && h.last !== g.type) t += .4;
+    if (g.cross) t += .6; // knapp über/unter der eigenen Strecke
     return { t, n, v, k: g.kExit };
   }
   function place(run, g) {
@@ -112,7 +122,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
       const km = (run.head.k + kOut) / 2;
       run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z0, din: g.din, dout: g.din, type: g.type, half: 0, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut: km });
       run.track.push({ i: g.i2, j: g.j2, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, half: 1, v: e.v, t: 0, n: 0, kIn: km, kOut });
-    } else run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut });
+    } else run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut , cross: !!g.cross });
     if (g.stall) run.stall = { idx: run.track.length - (two ? 2 : 1), f: g.stallF, kind: g.kind };
     run.head = { i: two ? g.i2 : g.i, j: two ? g.j2 : g.j, z: g.z1, dir: g.dout, k: kOut, turn: g.type === 'K' ? g.turn : 0, last: g.type }; run.placed++;
   }
@@ -643,12 +653,16 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     }
     items.push({ d: run.exit.i + run.exit.j + .55, f: c => drawBrake(c, P, run.exit.i, run.exit.j) });
     run.track.forEach(p => { if (p.type === 'H' || p.type === 'V') items.push({ d: p.i + p.j + 1.06 + p.z0 * .012, f: c => drawFins(c, P, p, p.type === 'H' ? [R.yellow[3], R.base[3]] : [R.orange[3], R.cyan[1]]) }); });
+    // Kreuzungsfelder: die obere Strecke bekommt dort keine Stützen (sie stünden sonst auf der unteren)
+    const pcs = run.track.concat(run.ret), lowZ = {}; pcs.forEach(p => { const q = p.i + ',' + p.j; lowZ[q] = q in lowZ ? Math.min(lowZ[q], p.z0) : p.z0; });
+    const cnt = {}; pcs.forEach(p => { const q = p.i + ',' + p.j; cnt[q] = (cnt[q] || 0) + 1; });
+    const overX = pi => { const p = pcs[pi]; if (!p) return false; const q = p.i + ',' + p.j; return cnt[q] > 1 && p.z0 > lowZ[q]; };
     let pn = [0, 1];
     for (let k = 0; k < Sm.length - 1; k++) {
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
       let dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy); if (l > 1e-4) { dx /= l; dy /= l; pn = [-dy, dx]; } let nx = pn[0], ny = pn[1]; if (a.ty === 'L' && a.ev) { nx = -a.ev[1]; ny = a.ev[0]; }
       items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ls || 0) * .03, f: c => {
-        if (a.sup && a.z > .25 && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
+        if (a.sup && a.z > .25 && !overX(a.pi) && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
           const top = a.z - .05;
           [[-1, R.stone[2]], [1, R.stone[4]]].forEach(cc => { const g0 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], 0), g1 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], top); pl(c, g0[0], g0[1], g1[0], g1[1], cc[1], 2); });
           for (let z = 0; z < top - .2; z += .75) { const zt = Math.min(top, z + .75), q0 = P(a.x - nx * .12, a.y - ny * .12, z), q1 = P(a.x + nx * .12, a.y + ny * .12, zt), q2 = P(a.x + nx * .12, a.y + ny * .12, z), q3 = P(a.x - nx * .12, a.y - ny * .12, zt); pl(c, q0[0], q0[1], q1[0], q1[1], R.stone[3], 1); pl(c, q2[0], q2[1], q3[0], q3[1], R.stone[3], 1); const m0 = P(a.x - nx * .12, a.y - ny * .12, zt), m1 = P(a.x + nx * .12, a.y + ny * .12, zt); pl(c, m0[0], m0[1], m1[0], m1[1], R.stone[1], 1); }
@@ -656,6 +670,8 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
         }
         if (a.ty === 'C' && a.rot !== undefined && (CK.spine || CK.shade)) { drawCorkSeg(c, P, a, b, tc, k); return; }
         const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
+        // Kreuzung: obere Strecke als Brücke mit Kastenträger
+        if (overX(a.pi)) { const g0 = P(a.x, a.y, a.z - .1), g1 = P(b.x, b.y, b.z - .1); pl(c, g0[0], g0[1] + 6, g1[0], g1[1] + 6, R.base[0], 4); pl(c, g0[0], g0[1] + 4, g1[0], g1[1] + 4, R.stone[1], 4); pl(c, g0[0], g0[1] + 3, g1[0], g1[1] + 3, R.yellow[2], 2); }
         if (CK.spine && a.ty === 'C' && a.rot !== undefined) { const nz = (r, cp) => [-cp[0] * Math.sin(r) * .13, -cp[1] * Math.sin(r) * .13, Math.cos(r) * .26], na = nz(a.rot, a.cp), nb = nz(b.rot === undefined ? a.rot : b.rot, a.cp), s0 = P(a.x - na[0], a.y - na[1], a.z - na[2]), s1 = P(b.x - nb[0], b.y - nb[1], b.z - nb[2]); pl(c, s0[0], s0[1] + 1, s1[0], s1[1] + 1, R.stone[0], 4); pl(c, s0[0], s0[1], s1[0], s1[1], R.stone[2], 2); }
         pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
         const ca = a.rot === undefined ? 1 : Math.cos(a.rot), sa = a.rot === undefined ? 0 : Math.sin(a.rot), cb = b.rot === undefined ? ca : Math.cos(b.rot), sb = b.rot === undefined ? sa : Math.sin(b.rot);
@@ -1088,13 +1104,14 @@ function dialogBase(w,h,title,low){const x=Math.floor((Wu-w)/2),y=low?Math.floor
 const INFO={G:['Gerade','Kostet kaum Schwung.'],L:['Kurve','Gibt Aufregung,','etwas Übelkeit.'],A:['Anstieg','Geht nur mit Schwung.'],B:['Abfahrt','Gibt Schwung','und Aufregung.'],
  P:['Looping','Braucht viel Schwung.','Viel Aufregung, Übelkeit.'],H:['Bremse','Senkt den Schwung,','beruhigt die Fahrt.'],V:['Booster','Gibt Schwung, auch','auf flacher Strecke.'],
  W:['Splash','Nur durch einen Teich,','am Boden. Bremst stark.'],C:['Korkenzieher','Zwei Felder, kopfüber.','Braucht viel Schwung.'],
- F:['Pflicht-Flagge','Die Strecke muss über','jede rot-weiße Flagge.'],Z:['Ziel-Tor','Hier endet die Strecke,','unten am Boden.']};
-const KURZ={Z:'Hier endet die Strecke.',F:'Strecke muss darüber.',G:'Kostet kaum Schwung.',L:'Aufregung, Übelkeit.',A:'Geht nur mit Schwung.',B:'Gibt Schwung.',P:'Braucht viel Schwung.',H:'Senkt den Schwung.',V:'Gibt Schwung, auch flach.',W:'Nur durch einen Teich.',C:'Zwei Felder, kopfüber.'};
+ X:['Kreuzung','Gerade über Gerade,','2 Ebenen Abstand.'],F:['Pflicht-Flagge','Die Strecke muss über','jede rot-weiße Flagge.'],Z:['Ziel-Tor','Hier endet die Strecke,','unten am Boden.']};
+const KURZ={Z:'Hier endet die Strecke.',X:'Gerade über Gerade.',F:'Strecke muss darüber.',G:'Kostet kaum Schwung.',L:'Aufregung, Übelkeit.',A:'Geht nur mit Schwung.',B:'Gibt Schwung.',P:'Braucht viel Schwung.',H:'Senkt den Schwung.',V:'Gibt Schwung, auch flach.',W:'Nur durch einen Teich.',C:'Zwei Felder, kopfüber.'};
 function infoIcon(k,x,y){
   if(k==='F'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+5,y+3,2,16,'#5A5F6B');ui.fr(x+4,y+2,3,2,'#F2C12E');for(let q=0;q<4;q++)ui.fr(x+7+q*3,y+3+q,3,8-2*q,q%2?'#FFFFFF':'#E04A3C');ui.fr(x+2,y+17,3,2,'#E04A3C');ui.fr(x+14,y+16,3,2,'#E04A3C');return}
   if(k==='Z'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+2,y+3,2,17,'#5A5F6B');ui.fr(x+16,y+3,2,17,'#5A5F6B');for(let q=0;q<6;q++)for(let r=0;r<2;r++)ui.fr(x+4+q*2,y+4+r*2,2,2,(q+r)%2?'#FFFFFF':'#1B2030');ui.fr(x+8,y+12,4,8,'#D8312B');return}
+  if(k==='X'){ui.fr(x,y,20,20,'#5DAE34');ui.fr(x+8,y,4,20,'#8A2F28');ui.fr(x+9,y,2,20,'#D8564A');for(let q=1;q<20;q+=3)ui.fr(x+7,y+q,6,1,'#6B6F7A');ui.fr(x,y+11,20,3,'#1B2030');ui.fr(x,y+10,20,2,'#9AA0AA');ui.fr(x,y+6,20,4,'#8A2F28');ui.fr(x,y+7,20,2,'#D8564A');return}
   pieceIcon(k==='R'?'L':k,x,y)}
-const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).filter(k=>!saved.seen.includes(k)):[];
+const neuList=()=>LEVEL?['P','H','V','W','C'].filter(k=>k in LEVEL.inv).concat((LEVEL.flags||[]).length?['F']:[]).concat(LEVEL.rnd||lvIdx()>=LEVELS.findIndex(l=>l.id==='k2-5')?['X']:[]).filter(k=>!saved.seen.includes(k)):[];
 function afterHelp(){overlay=neuList().length?'neu':null}
 function neuWin(){
   const L2=neuList().slice(0,3),w=Math.min(176,Wu-10),h=22+L2.length*34+20,p=dialogBase(w,h,'Neu in diesem Level'),x=p.x,y=p.y;
@@ -1102,7 +1119,7 @@ function neuWin(){
   ui.btn('nok',x+w-44,y+h-20,38,15,{fn:()=>{L2.forEach(k=>saved.seen.push(k));store.set('hb4',saved);overlay=neuList().length?'neu':null},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function teileWin(){
-  const ks=['Z','F','G','L','A','B','P','H','V','W','C'],w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
+  const ks=['Z','F','X','G','L','A','B','P','H','V','W','C'],w=Math.min(184,Wu-6),h=24+ks.length*22+20,x=Math.floor((Wu-w)/2),y=Math.max(18,Math.floor((Hu-h)/2));ui.win(x,y,w,h,'Teile und Zeichen');
   ks.forEach((k,n)=>{const yy=y+15+n*22;infoIcon(k,x+5,yy);T(x+29,yy+1,INFO[k][0],C.yel);T(x+29,yy+11,KURZ[k],C.txt)});
   ui.btn('tok',x+w-52,y+h-19,46,15,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});
 }

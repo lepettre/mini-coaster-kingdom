@@ -39,6 +39,15 @@
   // Splash (W) darf auf Teichfelder, alles andere nicht
   function occupied(run, i, j, water) { return run.track.some(p => p.i === i && p.j === j) || run.blocked.some(p => p.i === i && p.j === j && !(water && run.pond && run.pond.has(i + ',' + j))); }
 
+  // Kreuzung: eine flache Gerade darf rechtwinklig über oder unter genau eine andere flache Gerade, mit mindestens 2 Ebenen Abstand
+  function crossOK(run, K, h, i, j, dir) {
+    if (K.type !== 'G') return false;
+    const here = run.track.filter(p => p.i === i && p.j === j).concat(run.ret.filter(p => p.i === i && p.j === j));
+    if (here.length !== 1) return false; const o = here[0];
+    if (o.type !== 'G' || o.z0 !== o.z1 || o.din % 2 === dir % 2 || Math.abs(o.z0 - h.z) < 2) return false;
+    const isRet = run.ret.some(p => p.i === i && p.j === j);
+    return !run.blocked.some(b => b.i === i && b.j === j) || isRet && run.blocked.filter(b => b.i === i && b.j === j).length === 1;
+  }
   function ghost(run, kind) {
     const K = KINDS[kind], h = run.head, n = run.n;
     const i = h.i + DV[h.dir][0], j = h.j + DV[h.dir][1];
@@ -51,7 +60,7 @@
     if (run.stall) { g.valid = false; g.reason = 'Zug steht schon'; }
     else if ((run.inv[kind] || 0) <= 0) { g.valid = false; g.reason = 'Keine mehr'; }
     else if (out(i, j) || out(i2, j2)) { g.valid = false; g.reason = 'Rand des Parks'; }
-    else if (occupied(run, i, j, K.type === 'W') || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Feld belegt'; }
+    else if ((occupied(run, i, j, K.type === 'W') && !(g.cross = crossOK(run, K, h, i, j, h.dir))) || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Feld belegt'; }
     else if (K.type === 'W' && !run.pond.has(i + ',' + j)) { g.valid = false; g.reason = 'Nur auf einem Teichfeld'; }
     else if (K.type === 'W' && h.z !== 0) { g.valid = false; g.reason = 'Nur am Boden'; }
     else if (z1 < 0) { g.valid = false; g.reason = 'Schon am Boden'; }
@@ -75,6 +84,7 @@
       case 'W': t = 2 + .5 * v; break;
     }
     if (h.last && h.last !== g.type) t += .4;
+    if (g.cross) t += .6; // knapp über/unter der eigenen Strecke
     return { t, n, v, k: g.kExit };
   }
   function place(run, g) {
@@ -86,7 +96,7 @@
       const km = (run.head.k + kOut) / 2;
       run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z0, din: g.din, dout: g.din, type: g.type, half: 0, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut: km });
       run.track.push({ i: g.i2, j: g.j2, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, half: 1, v: e.v, t: 0, n: 0, kIn: km, kOut });
-    } else run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut });
+    } else run.track.push({ i: g.i, j: g.j, z0: g.z0, z1: g.z1, din: g.din, dout: g.dout, type: g.type, v: e.v, t: e.t, n: e.n, kIn: run.head.k, kOut , cross: !!g.cross });
     if (g.stall) run.stall = { idx: run.track.length - (two ? 2 : 1), f: g.stallF, kind: g.kind };
     run.head = { i: two ? g.i2 : g.i, j: two ? g.j2 : g.j, z: g.z1, dir: g.dout, k: kOut, turn: g.type === 'K' ? g.turn : 0, last: g.type }; run.placed++;
   }

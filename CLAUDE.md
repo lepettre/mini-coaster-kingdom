@@ -28,12 +28,14 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 - **Weiterfahrt nach Erfolg (2026-10-18):** Zug dreht nach erfolgreicher Fahrt im Hintergrund weiter Runden (`lap`), Ergebnisfenster dann unten über dem Baufenster; jeder Knopf beendet das. Test: `node rundetest.js`.
 - **Gäste-Reaktionen (2026-10-18):** Sprechblase über einem Wagen je Teil (`reactNow` in `template.html`, Symbole `RSYM`/`reactBubble` in `render.js`): Staunen (Abfahrt mit Schwung, Booster, Looping/Korkenzieher doppelt), Lachen danach, nass (Splash), Durchatmen (Bremse), übel (Kurve bei > 70 % Übelkeitslimit), Herz in der Runde nach Erfolg. Test: `node reaktiontest.js`.
 - **Figuren (2026-10-18):** `guest()` in `render.js` feiner: Augen, Haar mit Glanz, Hemd mit Schatten und Gürtel, schwingende Arme mit Händen, Hose (`PANTS`), Schuhe, manche mit Mütze (Variante `v`). Großaufnahme: `node figurtest.js` → `out/figuren.png`.
+- **Kreuzungen (2026-10-18):** flache Gerade darf rechtwinklig über/unter genau eine andere flache Gerade (auch Rückfahrt), mindestens 2 Ebenen Abstand (`crossOK` in `logic.js`, Track-Feld `cross`, +0,6 Aufregung). Obere Strecke dort ohne Stützen, mit Kastenträger (`overX` in `render.js`). Ändert an keinem Level das Par; von selbst nur in 2-5 genutzt. Erklärung „Kreuzung“ ab 2-5 und im Zufall, in „Alle Teile“. Test: `node kreuztest.js` → `out/kreuzung.png`.
+- **Abzeichen (2026-10-18):** 13 Stück (`BADGES` in `template.html`, `saved.ab`, Zufallszähler `saved.zc`), Vergabe in `checkBadges` nach Erfolg, „Zuschauer“ nach 3 Hintergrundrunden; Hinweis oben (`toast`), Fenster über Menü „Abzeichen“. Test: `node abzeichentest.js`.
 - **Tipp-Knopf:** nutzt zuerst die gespeicherten Drei-Sterne-Lösungen `sols` je Level (bis 30, aus `addsols.js`; Zufallsrätsel speichern ihre selbst): passt die bisherige Strecke, kommt das nächste Teil sofort. Sonst Suche mit Budget 400 000 (vorher 50 000, reichte für 6 Level nicht).
 
 ## Befehle
 - Einmalig: `npm install`
 - Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
-- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`), `node soundtest.js` (Ton), `node musiktest.js` (nur ein Musikstück gleichzeitig), `node tipptest.js` (jedes Level nur per Tipp lösen, ~10 min), `node rundetest.js` (Weiterfahrt nach Erfolg), `node reaktiontest.js` (Gäste-Reaktionen). Screenshots landen in `hb4/out/`.
+- Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`), `node soundtest.js` (Ton), `node musiktest.js` (nur ein Musikstück gleichzeitig), `node tipptest.js` (jedes Level nur per Tipp lösen, ~10 min), `node rundetest.js` (Weiterfahrt nach Erfolg), `node reaktiontest.js` (Gäste-Reaktionen), `node kreuztest.js` (Kreuzungen), `node abzeichentest.js` (Abzeichen), `node figurtest.js` (Figuren groß). Screenshots landen in `hb4/out/`.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
 ## Bekannte Lücken
@@ -45,7 +47,7 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 
 ## Geplant, noch NICHT gebaut (nur auf Auftrag)
 Varianz-Paket ist umgesetzt. Steuerung bleibt unverändert bis zu einem möglichen Port auf eine Retro-Handheld-Konsole (nur recherchiert, nicht beschlossen).
-Nur besprochen, nicht beschlossen: Kreuzungen, Steilabfahrt, Tunnel.
+Nur besprochen, nicht beschlossen: Steilabfahrt, Tunnel. Offen: ein Level, das eine Kreuzung verlangt.
 Weitere offene Punkte: Tagesrätsel; Senioren (siehe Bekannte Lücken); `pool.json` (Zufall-Fallback) enthält nur alte Teile.
 
 ## Veröffentlichen

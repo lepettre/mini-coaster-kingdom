@@ -397,12 +397,16 @@
     }
     items.push({ d: run.exit.i + run.exit.j + .55, f: c => drawBrake(c, P, run.exit.i, run.exit.j) });
     run.track.forEach(p => { if (p.type === 'H' || p.type === 'V') items.push({ d: p.i + p.j + 1.06 + p.z0 * .012, f: c => drawFins(c, P, p, p.type === 'H' ? [R.yellow[3], R.base[3]] : [R.orange[3], R.cyan[1]]) }); });
+    // Kreuzungsfelder: die obere Strecke bekommt dort keine Stützen (sie stünden sonst auf der unteren)
+    const pcs = run.track.concat(run.ret), lowZ = {}; pcs.forEach(p => { const q = p.i + ',' + p.j; lowZ[q] = q in lowZ ? Math.min(lowZ[q], p.z0) : p.z0; });
+    const cnt = {}; pcs.forEach(p => { const q = p.i + ',' + p.j; cnt[q] = (cnt[q] || 0) + 1; });
+    const overX = pi => { const p = pcs[pi]; if (!p) return false; const q = p.i + ',' + p.j; return cnt[q] > 1 && p.z0 > lowZ[q]; };
     let pn = [0, 1];
     for (let k = 0; k < Sm.length - 1; k++) {
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
       let dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy); if (l > 1e-4) { dx /= l; dy /= l; pn = [-dy, dx]; } let nx = pn[0], ny = pn[1]; if (a.ty === 'L' && a.ev) { nx = -a.ev[1]; ny = a.ev[0]; }
       items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ls || 0) * .03, f: c => {
-        if (a.sup && a.z > .25 && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
+        if (a.sup && a.z > .25 && !overX(a.pi) && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
           const top = a.z - .05;
           [[-1, R.stone[2]], [1, R.stone[4]]].forEach(cc => { const g0 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], 0), g1 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], top); pl(c, g0[0], g0[1], g1[0], g1[1], cc[1], 2); });
           for (let z = 0; z < top - .2; z += .75) { const zt = Math.min(top, z + .75), q0 = P(a.x - nx * .12, a.y - ny * .12, z), q1 = P(a.x + nx * .12, a.y + ny * .12, zt), q2 = P(a.x + nx * .12, a.y + ny * .12, z), q3 = P(a.x - nx * .12, a.y - ny * .12, zt); pl(c, q0[0], q0[1], q1[0], q1[1], R.stone[3], 1); pl(c, q2[0], q2[1], q3[0], q3[1], R.stone[3], 1); const m0 = P(a.x - nx * .12, a.y - ny * .12, zt), m1 = P(a.x + nx * .12, a.y + ny * .12, zt); pl(c, m0[0], m0[1], m1[0], m1[1], R.stone[1], 1); }
@@ -410,6 +414,8 @@
         }
         if (a.ty === 'C' && a.rot !== undefined && (CK.spine || CK.shade)) { drawCorkSeg(c, P, a, b, tc, k); return; }
         const p0 = P(a.x, a.y, a.z), p1 = P(b.x, b.y, b.z);
+        // Kreuzung: obere Strecke als Brücke mit Kastenträger
+        if (overX(a.pi)) { const g0 = P(a.x, a.y, a.z - .1), g1 = P(b.x, b.y, b.z - .1); pl(c, g0[0], g0[1] + 6, g1[0], g1[1] + 6, R.base[0], 4); pl(c, g0[0], g0[1] + 4, g1[0], g1[1] + 4, R.stone[1], 4); pl(c, g0[0], g0[1] + 3, g1[0], g1[1] + 3, R.yellow[2], 2); }
         if (CK.spine && a.ty === 'C' && a.rot !== undefined) { const nz = (r, cp) => [-cp[0] * Math.sin(r) * .13, -cp[1] * Math.sin(r) * .13, Math.cos(r) * .26], na = nz(a.rot, a.cp), nb = nz(b.rot === undefined ? a.rot : b.rot, a.cp), s0 = P(a.x - na[0], a.y - na[1], a.z - na[2]), s1 = P(b.x - nb[0], b.y - nb[1], b.z - nb[2]); pl(c, s0[0], s0[1] + 1, s1[0], s1[1] + 1, R.stone[0], 4); pl(c, s0[0], s0[1], s1[0], s1[1], R.stone[2], 2); }
         pl(c, p0[0], p0[1] + 3, p1[0], p1[1] + 3, R.stone[0], 2); pl(c, p0[0], p0[1] + 2, p1[0], p1[1] + 2, R.stone[1], 1);
         const ca = a.rot === undefined ? 1 : Math.cos(a.rot), sa = a.rot === undefined ? 0 : Math.sin(a.rot), cb = b.rot === undefined ? ca : Math.cos(b.rot), sb = b.rot === undefined ? sa : Math.sin(b.rot);
