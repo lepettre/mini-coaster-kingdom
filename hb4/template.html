@@ -48,7 +48,7 @@ const scr=document.createElement('canvas');scr.width=4;scr.height=4;{const g=scr
 const fmt=x=>x.toFixed(1).replace('.',',');const exc=t=>t/4,nau=n=>n/3;
 const word=v=>v<3?'niedrig':v<6?'mittel':v<8.5?'hoch':'extrem';
 let Wc=390,Hc=800,Wu=195,Hu=400,run,path,decor,ground,bgArea,L,sceneCv,sctx,lay={},cam={x:0,y:0},camManual=false,drag=null,maxPi=0,ridePath=null,stat=null,statKey='';
-let inGame=false,chap=0,busyMsg='',lastDiff=0,stallInfo=null,swing=null,stallS=null,sel=null,mode='build',cars=null,rideS=0,partial=null,overlay='menu',result=null,lastT=0;
+let inGame=false,chap=0,busyMsg='',lastDiff=0,stallInfo=null,swing=null,stallS=null,sel=null,mode='build',cars=null,rideS=0,partial=null,overlay='menu',result=null,lastT=0,lap=false;
 
 // ---------- Figuren (12x16) ----------
 const SPR={kids:[[8,1,3,3,'#D93A2B'],[9,4,1,2,'#fff'],[4,6,4,4,'#F0C49A'],[4,5,4,2,'#6B3E1D'],[3,10,6,4,'#FF8FA3'],[4,14,2,2,'#2B2B2B'],[6,14,2,2,'#2B2B2B']],
@@ -98,7 +98,7 @@ function focus(){
   return{x:(x0+x1)/2,y:(y0+y1)/2-6}
 }
 function clampCam(){const mx=Wc/2-70,Mx=L.W-Wc/2+70,my=lay.areaH/2-50,My=L.H-lay.areaH/2+50;cam.x=Math.max(Math.min(mx,Mx),Math.min(Math.max(mx,Mx),cam.x));cam.y=Math.max(Math.min(my,My),Math.min(Math.max(my,My),cam.y))}
-function newRun(){hintK=null;hintSeq=null;run=HB.newRun(LEVEL);path=HBR.buildPath(run,false);sel=null;mode='build';cars=null;partial=null;result=null;camManual=false;if(L)cam=focus()}
+function newRun(){lap=false;hintK=null;hintSeq=null;run=HB.newRun(LEVEL);path=HBR.buildPath(run,false);sel=null;mode='build';cars=null;partial=null;result=null;camManual=false;if(L)cam=focus()}
 function loadLevel(i){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';LEVEL=LEVELS[i];saved.cur=i;store.set('hb4',saved);stat=null;statKey='';overlay=saved.help?(neuList().length?'neu':null):'help';inGame=true;init()}
 const STY={meadow:'B1',winter:'A2',desert:'D1',coast:'C1'},TCOL={meadow:['red','blue','green'],winter:['blue','red'],desert:['orange','red'],coast:['green','blue']},THEMES=['meadow','winter','desert','coast'],DIFFN=['Leicht','Mittel','Schwer'];
 const SPECS=[{min:8,max:12,groups:[['kids'],['fam']],loop:'no',extras:1,pond:[4,6],maxSol:100,flags:0},{min:10,max:14,groups:[['fam'],['teens']],loop:'allow',extras:1,pond:[4,6],maxSol:60,flags:1},{min:12,max:17,groups:[['teens'],['fans']],loop:'allow',extras:2,pond:[4,6],maxSol:30,budget:15000,flags:2}];
@@ -165,7 +165,7 @@ function buildWin(){
   const sy=gy+66;ui.inset(b.x+5,sy,b.w-10,23,C.inset);
   let l1='',l2='';
   if(mode==='ride'){l1='Die Fahrt läuft.'}
-  else if(mode==='result'){l1='Fahrt beendet.'}
+  else if(mode==='result'){l1=lap?'Der Zug fährt weiter Runden.':'Fahrt beendet.'}
   else if(run.stall){l1='Zu wenig Schwung!';l2='Fahrt zeigt, was passiert.'}
   else if(HB.ready(run)){const fj=HB.judge(run).flags;if(fj.hit<fj.n){l1='Kreis zu, aber';l2='Flagge fehlt ('+fj.hit+'/'+fj.n+')!'}else{l1='Kreis geschlossen!';l2='Starte die Fahrt.'}}
   else if(!sel){const fj=HB.judge(run).flags;l1='Wähle ein Teil.';l2=fj.n?'Über alle Flaggen ('+fj.hit+'/'+fj.n+')':'Dann BAUEN tippen.'}
@@ -209,7 +209,7 @@ function topBar(){
   ui.btn('tipp',Wu-49,2,13,12,{disabled:mode!=='build',fn:doHint,draw:(x2,y2,w2,h2,dis)=>{bulb(x2+2,y2+1,!dis)}});
   ui.btn('help',Wu-17,2,13,12,{fn:()=>{overlay='help'},draw:(x2,y2)=>{T(x2+4,y2+2,'?',C.txt)}});
 }
-function dialogBase(w,h,title){const x=Math.floor((Wu-w)/2),y=Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
+function dialogBase(w,h,title,low){const x=Math.floor((Wu-w)/2),y=low?Math.floor(Hc/U)-h-4:Math.max(20,Math.floor((lay.areaTop/U+lay.areaBottom/U-h)/2));ui.win(x,y,w,h,title);return{x,y}}
 // ---------- Erklärungen: neue Elemente beim ersten Auftreten, Übersicht in der Hilfe ----------
 const INFO={G:['Gerade','Kostet kaum Schwung.'],L:['Kurve','Etwas Aufregung.'],A:['Anstieg','Geht nur mit Schwung.'],B:['Abfahrt','Gibt Schwung.'],
  P:['Looping','Braucht Schwung 2,6.','Viel Aufregung.'],H:['Bremse','Senkt den Schwung,','beruhigt die Fahrt.'],V:['Booster','Gibt Schwung, auch','auf flacher Strecke.'],
@@ -242,13 +242,13 @@ function helpWin(){
   ui.btn('hok',x+w-44,y+h-20,38,15,{fn:()=>{saved.help=1;store.set('hb4',saved);afterHelp()},draw:(x2,y2)=>{T(x2+13,y2+4,'OK',C.txt)}});
 }
 function resultWin(){
-  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung'),x=p.x,y=p.y;
+  const g=result.j.res,w=Math.min(176,Wu-10),h=62+g.length*24+16,p=dialogBase(w,h,result.j.flags&&result.j.flags.hit<result.j.flags.n?'Flagge verpasst!':'Fahrtbewertung',lap),x=p.x,y=p.y;
   const a=exc(run.thrill),u=nau(run.nausea);
   T(x+6,y+16,'Aufregung',C.txt);T(x+76,y+16,fmt(a),C.txt);T(x+100,y+16,word(a),C.txt);
   T(x+6,y+26,'Übelkeit',C.txt);T(x+76,y+26,fmt(u),C.txt);T(x+100,y+26,word(u),C.txt);
   g.forEach((r,k)=>{const yy=y+40+k*24;ui.inset(x+4,yy,w-8,22,C.inset);sprite(r.id,x+7,yy+3);T(x+22,yy+3,r.name,C.txt);T(x+22,yy+12,r.ok?'zufrieden':r.why.length>24?r.why.slice(0,24):r.why,r.ok?'#9BE08A':'#FF9A80');face(x+w-22,yy+5,r.ok?'ok':(/Übelkeit/.test(r.why)?'sick':'bored'))});
   const sy=y+40+g.length*24+4;star(x+Math.floor(w/2)-24,sy,result.st>=1);star(x+Math.floor(w/2)-7,sy,result.st>=2);star(x+Math.floor(w/2)+10,sy,result.st>=3);
-  const nx=result.j.success&&(LEVEL.rnd||lvIdx()<LEVELS.length-1),cl=()=>{overlay=null;mode='build';partial=null;partialK=null;cars=null;path=HBR.buildPath(run,false)};
+  const nx=result.j.success&&(LEVEL.rnd||lvIdx()<LEVELS.length-1),cl=()=>{lap=false;overlay=null;mode='build';partial=null;partialK=null;cars=null;path=HBR.buildPath(run,false)};
   ui.btn('again',x+4,y+h-20,nx?52:64,15,{fn:()=>{overlay=null;newRun()},draw:(x2,y2)=>{T(x2+(nx?5:10),y2+4,'Nochmal',C.txt)}});
   if(nx){ui.btn('menu2',x+60,y+h-20,52,15,{fn:()=>{overlay='menu'},draw:(x2,y2)=>{T(x2+14,y2+4,'Menü',C.txt)}});ui.btn('next',x+w-56,y+h-20,52,15,{fn:()=>{LEVEL.rnd?startRandom(LEVEL.diff):loadLevel(lvIdx()+1)},draw:(x2,y2)=>{T(x2+9,y2+4,'Weiter',C.txt)}})}
   else ui.btn('close',x+w-74,y+h-20,68,15,{fn:cl,draw:(x2,y2)=>{T(x2+7,y2+4,'Schließen',C.txt)}});
@@ -302,7 +302,7 @@ function startRide(){
 }
 function finishRide(){
   mode='result';partial=null;partialK=null;const j=HB.judge(run),st=Math.min(HB.stars(run,LEVEL.par),hintUsed?2:3);if(!LEVEL.rnd&&st>stars_(LEVEL.id)){saved.s[LEVEL.id]=st;store.set('hb4',saved)}
-  result={j,st};HBS.sfx(j.success&&st>0?'win'+st:'fail',.3);setTimeout(()=>{overlay='result'},500);
+  lap=j.success;result={j,st};HBS.sfx(j.success&&st>0?'win'+st:'fail',.3);setTimeout(()=>{overlay='result'},500);
 }
 function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*(Wc/r.width),(e.clientY-r.top)*(Hc/r.height)]}
 cv.addEventListener('pointerdown',e=>{if(saved.snd&&!HBS.isOn())HBS.setOn(true);const p=pos(e),h=ui.press(p[0]/U,p[1]/U);if(!h&&!overlay&&p[1]>=lay.areaTop&&p[1]<=lay.areaBottom){drag={x:p[0],y:p[1],cx:cam.x,cy:cam.y,moved:false};try{cv.setPointerCapture(e.pointerId)}catch(_){}}});
@@ -343,9 +343,11 @@ function frame(now){
     if(!window.__frz)rideS+=dt*rideSpeed(rideS);
     cars=[rideS,rideS-.38,rideS-.76];const pi=HBR.posAt(ridePath,rideS).pi;if(pi>maxPi&&pi<run.track.length)maxPi=pi;let t=0,n=0;for(let k=0;k<maxPi&&k<run.track.length;k++){const p=run.track[k];if(p.t){t+=p.t;n+=p.n}}
     partial={t,n};partialK=Math.max(.2,run.head.k+(maxPi<run.track.length?1.2*(1-maxPi/run.track.length):0));
-    if(rideS>=ridePath.endS-.02){cars=null;finishRide()}
+    if(rideS>=ridePath.endS-.02){finishRide();if(!lap)cars=null}
     }
   }
+  // Nach Erfolg fährt der Zug im Hintergrund einfach weiter: am Bahnsteig schließt sich die Runde (Pfadende = Startpunkt)
+  else if(mode==='result'&&lap&&cars&&ridePath){rideS+=dt*rideSpeed(rideS);if(rideS>=ridePath.endS)rideS-=ridePath.endS-ridePath.startS;cars=[rideS,rideS-.38,rideS-.76]}
   if(!drag||!drag.moved){let tg=focus();if(mode==='ride'&&cars){const P=HBR.proj(L),q=HBR.posAt(ridePath,rideS),pp=P(q.x,q.y,q.z);tg={x:pp[0],y:pp[1]-10}}if(!camManual||mode==='ride'){cam.x+=(tg.x-cam.x)*.14;cam.y+=(tg.y-cam.y)*.14}}
   clampCam();
   ctx.imageSmoothingEnabled=false;ctx.fillStyle='#1E0D0B';ctx.fillRect(0,0,Wc,Hc);
