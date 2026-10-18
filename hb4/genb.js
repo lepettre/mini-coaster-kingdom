@@ -59,7 +59,7 @@
       const lvl={n:N,station:base.station,ret:base.ret,deco:base.deco,gate:base.gate,target:base.target,blocked:pondT.concat(pond),inv,groups:w.groups,flags};
       const r=HB.solve(lvl,spec.maxSol+1,40000),cen=r.sols.filter(s=>s.centered);
       if(r.sols.length<1||!cen.length||r.sols.length>spec.maxSol)continue;
-      lvl.par=Math.min(...cen.map(s=>s.placed));return lvl}
+      lvl.par=Math.min(...cen.map(s=>s.placed));lvl.sols=cen.sort((x,y)=>x.placed-y.placed).slice(0,20).map(s=>s.seq);return lvl}
     return null}
   root.HBG={init,make};
 })(typeof window!=='undefined'?window:globalThis);

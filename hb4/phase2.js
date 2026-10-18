@@ -24,7 +24,7 @@ const PLAN={
  'k3-3':['P2',['fans'],'CV','Zickzack',2,11,15,1],
  'k3-4':['P1',['kids'],'H','Zeile',2,9,13,0],
  'k3-5':['P4',['fans'],'C','Doppelteich',2,12,16,1],
- 'k3-6':['P3',['teens'],'C','L',2,12,17,1],
+ 'k3-6':['P1',['teens'],'C','L',2,11,16,1],
  'k4-1':['P2',['fam'],'W','Zeile',2,10,14,0],
  'k4-2':['P4',['teens'],'WV','Zickzack',2,12,16,1],
  'k4-3':['P3',['fans'],'CW','L',2,12,16,1],
@@ -48,6 +48,8 @@ function walk(R,base,spec){const kinds=['G','L','R','A','B'].concat(spec.loop?['
     for(const k of ks){const g=HB.ghost(run,k);if(!g.valid||g.stall)continue;HB.place(run,g);go();if(found)return;HB.undo(run)}})();
   return found}
 
+// Teilefolgen der Par-Lösungen aller anderen Level (einmal berechnet)
+let USED=null;function usedSeq(id){if(!USED){USED={};LV.forEach(l=>{const r=HB.solve(l,200,300000),c=r.sols.filter(x=>x.centered).sort((a,b)=>a.placed-b.placed);if(c.length)USED[l.id]=c[0].seq})}return new Set(Object.keys(USED).filter(k=>k!==id).map(k=>USED[k]))}
 function jacc(a,b){let n=0;a.forEach(t=>{if(b.has(t))n++});return n/(a.size+b.size-n)}
 
 function make(id,seed0,others){const [P,groups,must,shape,nflags,min,max,loop]=PLAN[id],base=LAY[P];
@@ -69,11 +71,12 @@ function make(id,seed0,others){const [P,groups,must,shape,nflags,min,max,loop]=P
     if(Object.keys(inv).length>8)continue;
     let l=Object.assign({},base,{groups,blocked,inv,flags:[]});
     if(nflags){const fl=V.pickFlags(l,seq,nflags,V.reserved(base));if(fl.length<nflags)continue;l.flags=fl}
-    const r=HB.solve(l,151,300000),c=r.sols.filter(x=>x.centered);if(!c.length||r.sols.length<2||r.sols.length>150)continue;
+    const r=HB.solve(l,151,300000),c=r.sols.filter(x=>x.centered);if(c.length<4||r.sols.length<2||r.sols.length>150)continue; // mind. 4 Drei-Sterne-Lösungen, sonst zu eng
     const best=c.sort((a,b)=>a.placed-b.placed)[0];
     // Die Par-Lösung muss alle neuen Teile des Levels nutzen und darf nicht viel kürzer als geplant sein
     if(must.split('').some(m=>!best.seq.includes(m))||best.placed<min-1)continue;const tiles=new Set(V.tilesOf(l,best.seq).map(t=>key(t[0],t[1])));
     if(others.some(o=>o.P===P&&jacc(o.tiles,tiles)>.6))continue;
+    if(usedSeq(id).has(best.seq))continue; // gleiche Teilefolge wie ein anderes Level vermeiden
     l.par=best.placed;return{l,P,tiles,seed:s,n:r.sols.length,cen:c.length,ex:best.seq,nodes:r.nodes}}
   return null}
 

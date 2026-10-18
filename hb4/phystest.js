@@ -26,6 +26,6 @@ const check=(name,l)=>{const r=HB.solve(l,400,300000);const c=r.sols.filter(s=>s
   for(const s of r.sols){const run=HB.newRun(l);for(const k of s.seq){const g=HB.ghost(run,k);HB.place(run,g);const p=run.track[run.track.length-1];
     if(p.z1>run.lift&&!s.seq.includes('V')){fail.push(name+': Höhe '+p.z1+' über Lifthill ('+s.seq+')');return}
     if(p.type==='A'&&!(p.kOut<p.kIn)){fail.push(name+': Anstieg ohne Verlangsamung');return}}}};
-LV.forEach(l=>{check(l.id,l);if(Object.keys(l.inv).length>8)fail.push(l.id+': mehr als 8 Teilearten (Baufenster)')});
+LV.forEach(l=>{check(l.id,l);if(!(l.sols&&l.sols.length))fail.push(l.id+': keine gespeicherten Lösungen (node addsols.js)');else l.sols.forEach(sq=>{const run=HB.newRun(l);for(const k of sq){const g=HB.ghost(run,k);if(!g.valid||g.stall){fail.push(l.id+': gespeicherte Lösung ungültig '+sq);return}HB.place(run,g)}const j=HB.judge(run);if(!(j.success&&j.centered))fail.push(l.id+': gespeicherte Lösung ohne 3 Sterne '+sq)});if(Object.keys(l.inv).length>8)fail.push(l.id+': mehr als 8 Teilearten (Baufenster)')});
 const b=LV[0];PO.forEach((e,k)=>check('Pool '+k,Object.assign({},b,{blocked:e.b,inv:e.i,groups:e.g,par:e.p})));
 console.log('Level',LV.length,'Pool',PO.length,'Fehler:',fail.length?'\n'+fail.join('\n'):'keine');if(fail.length)process.exit(1);

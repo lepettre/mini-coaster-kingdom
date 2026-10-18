@@ -185,7 +185,10 @@ const curKey=()=>run.placed+':'+run.head.i+','+run.head.j+','+run.head.dir;
 function say(m){hintMsg=m;hintMsgKey=curKey();hintT=lastT+4.5}
 function doHint(){
   if(mode!=='build'||overlay)return;
-  const r=HB.hint(run,50000);
+  // zuerst gespeicherte Lösungen des Levels: passt die bisherige Strecke dazu, ist der Tipp sofort da
+  if(!run.stall&&LEVEL.sols){const cur=run.hist.map(h=>h.kind).join(''),m=LEVEL.sols.find(s=>s.length>cur.length&&s.startsWith(cur));
+    if(m){hintUsed=true;hintKey=curKey();hintK=m[cur.length];sel=hintK;say('Tipp: '+HB.KINDS[sel].name+' bauen');return}}
+  const r=HB.hint(run,400000);
   if(r.out){say('Keine Antwort gefunden');return}
   if(r.found){
     if(!r.seq.length){say('Strecke steht - drück Los!');return}
