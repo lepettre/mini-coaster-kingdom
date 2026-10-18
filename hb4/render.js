@@ -345,6 +345,21 @@
     if (up) { rect(c, x - 4, y - 14 - k, 1, 6, R.skin[2]); rect(c, x + 3, y - 14 - k, 1, 6, R.skin[2]); }
     if (kid) { rect(c, x + 3, y - 18, 3, 4, R.red[3]); rect(c, x + 4, y - 14, 1, 4, '#FFFFFF'); }
   }
+  // Symbole 7×7 als Zeilen; Zeichen: r rot, y gelb, p rosa, g grün, b blau, k dunkel
+  const RSYM = {
+    wow: ['..r....', '..r....', '..r....', '..r....', '..r....', '.......', '..r....'],
+    wow2: ['.r..r..', '.r..r..', '.r..r..', '.r..r..', '.r..r..', '.......', '.r..r..'],
+    herz: ['.......', '.pp.pp.', 'ppppppp', 'ppppppp', '.ppppp.', '..ppp..', '...p...'],
+    uebel: ['.ggggg.', 'g.....g', 'g.ggg.g', 'g.g.g.g', 'g.g...g', 'g.gggg.', '.......'],
+    nass: ['.b...b.', '.b...b.', 'bbb.bbb', 'bbb.bbb', '.b.....', '...b...', '..bbb..'],
+    puh: ['.......', '.......', '.......', '.......', '.......', '.......', 'k.k.k..'],
+    lach: ['.......', '.k...k.', '.......', 'k.....k', '.k...k.', '..kkk..', '.......']
+  };
+  function reactBubble(c, x, y, sym) {
+    const rows = RSYM[sym]; if (!rows) return; const col = { r: R.red[2], y: R.yellow[2], p: R.red[3], g: R.lime[0], b: R.water[2], k: R.base[0] };
+    rect(c, x - 1, y - 1, 13, 12, R.base[0]); rect(c, x, y, 11, 10, '#FFFFFF'); rect(c, x + 2, y + 10, 3, 1, '#FFFFFF'); rect(c, x + 1, y + 10, 1, 2, R.base[0]); rect(c, x + 2, y + 11, 1, 2, R.base[0]); rect(c, x + 3, y + 11, 2, 1, R.base[0]);
+    rows.forEach((r, j) => { for (let i = 0; i < 7; i++) if (r[i] !== '.') rect(c, x + 2 + i, y + 1 + j, 1, 1, col[r[i]]); });
+  }
   const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
   const HAIR = [R.wood[1], R.base[1], R.yellow[1], R.wood[3], R.stone[4]];
 
@@ -444,6 +459,8 @@
     dyn.sort((a, b) => a.d - b.d); let di = 0;
     S.static.slabs.forEach(sl => { while (di < dyn.length && dyn[di].d < sl.d0) { dyn[di].f(c); di++; } c.drawImage(sl.cv, sl.x, sl.y); });
     while (di < dyn.length) { dyn[di].f(c); di++; }
+    // Gäste-Reaktion: Sprechblase mit Pixel-Symbol über einem Wagen (S.react = {sym, ci} aus der Oberfläche)
+    if (S.cars && S.react && S.react.sym) { const cs = S.cars[S.react.ci % S.cars.length], q = posAt(S.ridePath, cs), p = P(q.x, q.y, q.z), bob = Math.round(Math.sin(t * 8)); reactBubble(c, p[0] + 6, p[1] - 30 + bob, S.react.sym); boxes.push([p[0] - 10, p[1] - 44, 34, 30]); }
     if (theme === 'winter') for (let k = 0; k < 60; k++) { const px = (hsh(k, 3, 9) * L.W + t * (7 + (k % 5))) % L.W, py = (hsh(k, 5, 7) * L.H + t * (16 + (k % 7) * 2)) % L.H; rect(c, px, py, 2, 2, '#FFFFFF'); }
     if (S.ghost) {
       const gh = S.ghost, z = (gh.z0 + gh.z1) / 2, i = gh.i, j = gh.j, ok = gh.valid;
