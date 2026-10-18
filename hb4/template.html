@@ -10,12 +10,13 @@
 html,body{margin:0;height:100%;background:#1E0D0B;overflow:hidden;-webkit-text-size-adjust:100%}
 body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:none;user-select:none}
 #cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;cursor:default}
+#sa{position:fixed;left:0;top:0;width:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 #err{position:fixed;left:0;right:0;top:0;background:#b3202c;color:#fff;font:12px system-ui,sans-serif;padding:6px 10px;z-index:9;display:none}
 </style>
 </head>
 <body>
 <div id="err"></div>
-<canvas id="cv"></canvas>
+<canvas id="cv"></canvas><div id="sa"></div>
 <script>window.addEventListener('error',function(e){var b=document.getElementById('err');b.style.display='block';b.textContent='Fehler: '+e.message+' ('+(e.lineno||'?')+')'});</script>
 <script>
 /*LOGIC*/
@@ -85,7 +86,9 @@ function pieceIcon(k,x,y){
 
 // ---------- Layout ----------
 function setup(){
-  Wc=Math.min(window.innerWidth,520);Hc=window.innerHeight;cv.width=Wc;cv.height=Hc;cv.style.width=Wc+'px';cv.style.height=Hc+'px';
+  // iPhone: Statusleiste oben und Home-Balken unten aussparen (sichere Ränder per env(safe-area-inset-*))
+  const sa=getComputedStyle(document.getElementById('sa')),st=parseFloat(sa.paddingTop)||0,sb=parseFloat(sa.paddingBottom)||0,vh=Math.min(window.innerHeight,window.visualViewport?window.visualViewport.height:1e9);
+  Wc=Math.min(window.innerWidth,520);Hc=Math.floor(vh-st-sb);cv.width=Wc;cv.height=Hc;cv.style.width=Wc+'px';cv.style.height=Hc+'px';cv.style.marginTop=st+'px';
   Wu=Math.floor(Wc/U);Hu=Math.floor(Hc/U);
   const bwH=132;lay.bw={x:3,y:Hu-3-bwH,w:Wu-6,h:bwH};lay.areaTop=16*U;lay.areaBottom=(lay.bw.y-2)*U;lay.areaH=lay.areaBottom-lay.areaTop;
   bgArea=HBR.makeBgArea(Wc,lay.areaH,Math.round(lay.areaH*.46),TH());
@@ -334,7 +337,9 @@ cv.addEventListener('pointerdown',e=>{if(saved.snd&&!HBS.isOn())HBS.setOn(true);
 cv.addEventListener('pointermove',e=>{if(!drag)return;const p=pos(e);if(Math.abs(p[0]-drag.x)+Math.abs(p[1]-drag.y)>4)drag.moved=true;if(drag.moved){cam.x=drag.cx-(p[0]-drag.x);cam.y=drag.cy-(p[1]-drag.y);camManual=true;clampCam()}});
 cv.addEventListener('pointerup',e=>{const p=pos(e);ui.release(p[0]/U,p[1]/U);drag=null});
 cv.addEventListener('pointercancel',()=>{ui.release(-9,-9);drag=null});
-window.addEventListener('resize',()=>{if(L)setup()});
+window.addEventListener('resize',()=>{if(L)setup()});if(window.visualViewport)window.visualViewport.addEventListener('resize',()=>{if(L)setup()});
+// iOS meldet die Höhe als Web-App beim Start manchmal zu früh; einmal nachmessen
+setTimeout(()=>{if(L)setup()},400);window.addEventListener('orientationchange',()=>setTimeout(()=>{if(L)setup()},300));
 
 function bird(x,y,f){const w=f?-2:2;ui.fr; ctx.fillStyle='#2B2B2B';ctx.fillRect(Math.round(x),Math.round(y),2,2);ctx.fillRect(Math.round(x)-3,Math.round(y)+w,3,2);ctx.fillRect(Math.round(x)+2,Math.round(y)+w,3,2);ctx.fillRect(Math.round(x)-5,Math.round(y)+w*1.5,2,2);ctx.fillRect(Math.round(x)+5,Math.round(y)+w*1.5,2,2)}
 // Tempo folgt dem Schwung: innerhalb eines Teils von kIn nach kOut, Lifthill mit fester Kettengeschwindigkeit
