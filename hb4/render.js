@@ -358,6 +358,21 @@
     else { rect(c, x - 2, hy - 1, 4, 2, hair); rect(c, x + 1, hy, 1, 2, hair); rect(c, x - 2, hy - 1, 2, 1, shade(hair, 1.25)); }
     if (kid) { rect(c, x + 4, hy - 7, 3, 4, R.red[3]); rect(c, x + 4, hy - 7, 1, 1, '#FFFFFF'); rect(c, x + 5, hy - 3, 1, 4, '#FFFFFF'); rect(c, x + 3, hy + 1, 2, 1, '#FFFFFF'); }
   }
+  // Symbole 7×7 als Zeilen; Zeichen: r rot, y gelb, p rosa, g grün, b blau, k dunkel
+  const RSYM = {
+    wow: ['..r....', '..r....', '..r....', '..r....', '..r....', '.......', '..r....'],
+    wow2: ['.r..r..', '.r..r..', '.r..r..', '.r..r..', '.r..r..', '.......', '.r..r..'],
+    herz: ['.......', '.pp.pp.', 'ppppppp', 'ppppppp', '.ppppp.', '..ppp..', '...p...'],
+    uebel: ['.ggggg.', 'g.....g', 'g.ggg.g', 'g.g.g.g', 'g.g...g', 'g.gggg.', '.......'],
+    nass: ['.b...b.', '.b...b.', 'bbb.bbb', 'bbb.bbb', '.b.....', '...b...', '..bbb..'],
+    puh: ['.......', '.......', '.......', '.......', '.......', '.......', 'k.k.k..'],
+    lach: ['.......', '.k...k.', '.......', 'k.....k', '.k...k.', '..kkk..', '.......']
+  };
+  function reactBubble(c, x, y, sym) {
+    const rows = RSYM[sym]; if (!rows) return; const col = { r: R.red[2], y: R.yellow[2], p: R.red[3], g: R.lime[0], b: R.water[2], k: R.base[0] };
+    rect(c, x - 1, y - 1, 13, 12, R.base[0]); rect(c, x, y, 11, 10, '#FFFFFF'); rect(c, x + 2, y + 10, 3, 1, '#FFFFFF'); rect(c, x + 1, y + 10, 1, 2, R.base[0]); rect(c, x + 2, y + 11, 1, 2, R.base[0]); rect(c, x + 3, y + 11, 2, 1, R.base[0]);
+    rows.forEach((r, j) => { for (let i = 0; i < 7; i++) if (r[i] !== '.') rect(c, x + 2 + i, y + 1 + j, 1, 1, col[r[i]]); });
+  }
   const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
   const HAIR = [R.wood[1], R.base[1], R.yellow[1], R.wood[3], R.stone[4]];
 
