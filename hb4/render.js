@@ -338,27 +338,25 @@
     for (let k = 0; k < 4; k++) { const x0 = b[0] + 2 + k * 4, h = 10 - k * 2, y0 = b[1] + 1 + Math.round(w * k / 3) + k; rect(c, x0, y0, 4, h, k % 2 ? c2 : c1); }
     rect(c, b[0] + 2, b[1] + 1, 16, 1, on ? R.green[1] : R.red[1]);
   }
-  function guest(c, x, y, col, hair, step, up, kid) {
-    const k = kid ? 0 : 1;
-    rect(c, x - 2, y - 11 - k, 4, 4, R.skin[2]); rect(c, x - 2, y - 12 - k, 4, 2, hair); rect(c, x - 2, y - 7 - k, 4, 4 + k, col); rect(c, x - 3, y - 7 - k, 1, 3, col); rect(c, x + 2, y - 7 - k, 1, 3, col);
-    rect(c, x - 2, y - 3, 2, 3 + (step ? 1 : 0), R.base[1]); rect(c, x, y - 3, 2, 3 + (step ? 0 : 1), R.base[1]);
-    if (up) { rect(c, x - 4, y - 14 - k, 1, 6, R.skin[2]); rect(c, x + 3, y - 14 - k, 1, 6, R.skin[2]); }
-    if (kid) { rect(c, x + 3, y - 18, 3, 4, R.red[3]); rect(c, x + 4, y - 14, 1, 4, '#FFFFFF'); }
-  }
-  // Symbole 7×7 als Zeilen; Zeichen: r rot, y gelb, p rosa, g grün, b blau, k dunkel
-  const RSYM = {
-    wow: ['..r....', '..r....', '..r....', '..r....', '..r....', '.......', '..r....'],
-    wow2: ['.r..r..', '.r..r..', '.r..r..', '.r..r..', '.r..r..', '.......', '.r..r..'],
-    herz: ['.......', '.pp.pp.', 'ppppppp', 'ppppppp', '.ppppp.', '..ppp..', '...p...'],
-    uebel: ['.ggggg.', 'g.....g', 'g.ggg.g', 'g.g.g.g', 'g.g...g', 'g.gggg.', '.......'],
-    nass: ['.b...b.', '.b...b.', 'bbb.bbb', 'bbb.bbb', '.b.....', '...b...', '..bbb..'],
-    puh: ['.......', '.......', '.......', '.......', '.......', '.......', 'k.k.k..'],
-    lach: ['.......', '.k...k.', '.......', 'k.....k', '.k...k.', '..kkk..', '.......']
-  };
-  function reactBubble(c, x, y, sym) {
-    const rows = RSYM[sym]; if (!rows) return; const col = { r: R.red[2], y: R.yellow[2], p: R.red[3], g: R.lime[0], b: R.water[2], k: R.base[0] };
-    rect(c, x - 1, y - 1, 13, 12, R.base[0]); rect(c, x, y, 11, 10, '#FFFFFF'); rect(c, x + 2, y + 10, 3, 1, '#FFFFFF'); rect(c, x + 1, y + 10, 1, 2, R.base[0]); rect(c, x + 2, y + 11, 1, 2, R.base[0]); rect(c, x + 3, y + 11, 2, 1, R.base[0]);
-    rows.forEach((r, j) => { for (let i = 0; i < 7; i++) if (r[i] !== '.') rect(c, x + 2 + i, y + 1 + j, 1, 1, col[r[i]]); });
+  // Gast als kleine Pixelfigur (Fußpunkt x,y): Haare, Gesicht mit Augen, Hemd mit Schatten, Arme mit Händen, Hose, Schuhe.
+  // step: Gehphase 0/1 (Beine und Arme schwingen), up: Arme hoch, kid: kleiner, mit Luftballon, v: Variante (Hose, Mütze)
+  const PANTS = ['#3A4A78', '#5A4632', '#2E2E3A', '#6B6F7A'];
+  function guest(c, x, y, col, hair, step, up, kid, v) {
+    v = v || 0; const k = kid ? 0 : 1, hy = y - 12 - k * 2, ty = y - 8 - k, legH = 3 + k, dk = shade(col, .7), pc = PANTS[v % PANTS.length];
+    // Beine und Schuhe
+    rect(c, x - 2, y - legH, 2, legH - (step ? 1 : 0), pc); rect(c, x, y - legH, 2, legH - (step ? 0 : 1), shade(pc, .8));
+    rect(c, x - 2, y - 1 - (step ? 1 : 0), 2, 1, R.base[0]); rect(c, x, y - 1 - (step ? 0 : 1), 2, 1, R.base[0]);
+    // Rumpf mit Schatten rechts und Gürtellinie
+    rect(c, x - 2, ty, 4, 4 + k, col); rect(c, x + 1, ty, 1, 4 + k, dk); rect(c, x - 2, ty + 3 + k, 4, 1, shade(col, .55));
+    // Arme mit Händen
+    if (up) { rect(c, x - 3, ty - 4, 1, 5, col); rect(c, x + 2, ty - 4, 1, 5, dk); rect(c, x - 3, ty - 5, 1, 1, R.skin[2]); rect(c, x + 2, ty - 5, 1, 1, R.skin[2]); }
+    else { const a = step ? 1 : 0; rect(c, x - 3, ty + 1 - a, 1, 3, col); rect(c, x + 2, ty + a, 1, 3, dk); rect(c, x - 3, ty + 4 - a, 1, 1, R.skin[2]); rect(c, x + 2, ty + 3 + a, 1, 1, R.skin[1]); }
+    // Kopf: Gesicht, Schatten, Augen, Haare oder Mütze
+    rect(c, x - 2, hy, 4, 4, R.skin[2]); rect(c, x + 1, hy + 1, 1, 3, R.skin[1]); rect(c, x - 2, hy + 3, 4, 1, R.skin[1]);
+    rect(c, x - 1, hy + 1, 1, 1, R.base[0]); rect(c, x + 1, hy + 1, 1, 1, R.base[0]);
+    if (v % 3 === 1 && !kid) { rect(c, x - 2, hy - 2, 4, 2, R.red[2]); rect(c, x - 3, hy, 3, 1, R.red[1]); }
+    else { rect(c, x - 2, hy - 1, 4, 2, hair); rect(c, x + 1, hy, 1, 2, hair); rect(c, x - 2, hy - 1, 2, 1, shade(hair, 1.25)); }
+    if (kid) { rect(c, x + 4, hy - 7, 3, 4, R.red[3]); rect(c, x + 4, hy - 7, 1, 1, '#FFFFFF'); rect(c, x + 5, hy - 3, 1, 4, '#FFFFFF'); rect(c, x + 3, hy + 1, 2, 1, '#FFFFFF'); }
   }
   const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
   const HAIR = [R.wood[1], R.base[1], R.yellow[1], R.wood[3], R.stone[4]];
@@ -431,8 +429,8 @@
     if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
     const qy = sy + 1.5;
     // Gäste bleiben auf dem gepflasterten Stationsplatz (Felder sx..sx+1, Zeile sy+1): Schlange vom Eingangstor zum Bahnsteig, Zuschauer am Rand
-    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid); } }); }
-    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1); } }); });
+    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid, g); } }); }
+    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1, g + 5); } }); });
     const Sm = S.path.S;
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {
