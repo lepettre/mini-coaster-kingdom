@@ -45,12 +45,12 @@ Das Projekt ist ein privates Hobby- und Lernprojekt. Es ist **nicht kommerziell*
 | `hb4/ui.js`, `hb4/template.html` | Oberfläche, Pixelschrift, Menü, Level, Hilfe, Zufall; `template.html` ist das HTML-Gerüst mit Platzhaltern |
 | `hb4/sound.js` | Musik, Geräusche und Stimmen per WebAudio |
 | `hb4/genb.js` | Zufallsgenerator im Browser |
-| `hb4/phase2.js`, `layouts.js`, `gen*.js` | Erzeugen der festen Level und des Vorrats (Node) |
-| `hb4/levels24.json`, `pool.json` | Leveldaten, Vorrat an Zufallsrätseln |
+| `hb4/phase2.js`, `varianz.js`, `layouts.js`, `addsols.js` | Erzeugen der festen Level und ihrer Musterlösungen (Node) |
+| `hb4/levels24.json`, `pool.json` | Leveldaten, fester Vorrat an Zufallsrätseln (Rückfall) |
 | `hb4/station_*.json` | fertige Stationsgrafiken der 4 Landschaften |
 | `hb4/build.py` | setzt alles zu `index.html` zusammen |
 | `hb4/*test*.js` | Tests (Browser per Puppeteer; `phystest.js` reines Node) |
-| `hb5/`, `icons/` | Grafik-Generatoren (Stationen unvollständig, siehe CLAUDE.md), Icon |
+| `icons/` | Icon-Generator |
 
 ### Bauen und testen
 ```

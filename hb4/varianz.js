@@ -1,6 +1,4 @@
-// Varianz-Paket, Phase 1: drei Testvarianten zur Durchsicht (schreibt varianz_test.json, ändert levels24.json NICHT).
-// Fester Baukasten: Hindernis-Schablonen, Flaggen auf einer bekannten Lösungsstrecke, ein Solver-Lauf prüft die Lösungszahl.
-// Walk mit kleinem Budget nur für die neuen Grundrisse P3 und P4.
+// Hilfsfunktionen für phase2.js: Zufallsweg, Hindernis-Schablonen, Flaggen auf einer bekannten Lösungsstrecke, Textbrett.
 const HB=require('./logic.js');const fs=require('fs');const LAY=require('./layouts.js');
 const LV=JSON.parse(fs.readFileSync('levels24.json'));
 const D4=[[1,0],[0,1],[-1,0],[0,-1]],key=(i,j)=>i+','+j;
@@ -53,33 +51,3 @@ function board(l,seq){const N=l.n,g=[...Array(N)].map(()=>Array(N).fill('.'));co
 function search(name,fn,seed0){for(let s=seed0;s<seed0+400;s++){const R=HB.mulberry32(s),o=fn(R);if(o){o.seed=s;console.log('== '+name+' (Seed '+s+')');return o}}throw new Error('keine Variante: '+name)}
 
 module.exports={walk,tilesOf,invOf,placeShape,pickFlags,finish,board,reserved,SHAPES};
-if(require.main===module){
-const out=[];
-// 1) P3 lange Süd-Rückfahrt mit L-Hindernis
-out.push(search('V1 P3 mit L-Hindernis',R=>{const base=LAY.P3,spec={min:12,max:16,groups:['teens'],loop:false,budget:6000};
-  const seq=walk(R,base,spec);if(!seq)return null;const tl=tilesOf(Object.assign({},base,{inv:invOf(seq)}),seq);if(Math.min(...tl.map(t=>t[1]))>2)return null;const path=new Set(tl.map(t=>key(t[0],t[1])));
-  const L=placeShape(R,SHAPES.L,base,path,new Set());if(!L)return null;
-  return finish(Object.assign({},base,{name:'Test P3 L-Hindernis',id:'v1',groups:spec.groups,blocked:L,inv:invOf(seq,1),flags:[]}),3,300)},1));
-// 2) P4 9x9 mit einer Flagge
-out.push(search('V2 P4 9x9 mit Flagge',R=>{const base=LAY.P4,spec={min:11,max:15,groups:['teens'],loop:true,budget:8000};
-  const seq=walk(R,base,spec);if(!seq)return null;const l0=Object.assign({},base,{inv:invOf(seq)}),path=new Set(tilesOf(l0,seq).map(t=>key(t[0],t[1])));
-  const Z=placeShape(R,SHAPES.Zickzack,base,path,new Set());if(!Z)return null;const l1=Object.assign({},l0,{blocked:Z});
-  const flags=pickFlags(l1,seq,1,reserved(base));if(flags.length<1)return null;
-  return finish(Object.assign({},l1,{name:'Test P4 9x9 Flagge',id:'v2',groups:spec.groups,inv:invOf(seq,1),flags}),3,300)},1));
-// 3) Bisheriger Grundriss, bekannte Strecke aus k2-3, zwei Flaggen + Doppelteich
-out.push(search('V3 P1 zwei Flaggen + Doppelteich',R=>{const src=LV.find(l=>l.id==='k2-3'),base=Object.assign({},LAY.P1,{deco:src.deco});
-  const r=HB.solve(src,200,200000),c=r.sols.filter(s=>s.centered);const seq=c[Math.floor(R()*c.length)].seq;
-  const l0=Object.assign({},base,{inv:invOf(seq),groups:src.groups}),path=new Set(tilesOf(l0,seq).map(t=>key(t[0],t[1])));
-  const taken=new Set(),p1=placeShape(R,SHAPES.Teich2,base,path,taken);if(!p1)return null;p1.forEach(t=>taken.add(key(t[0],t[1])));
-  const near=new Set();p1.forEach(([a,b])=>[[0,0],...D4].forEach(d=>near.add(key(a+d[0],b+d[1]))));
-  let p2=null;for(let k=0;k<30&&!p2;k++){const q=placeShape(R,SHAPES.Teich2,base,path,taken);if(q&&!q.some(t=>near.has(key(t[0],t[1]))))p2=q}if(!p2)return null;
-  const l1=Object.assign({},l0,{blocked:p1.concat(p2)});const flags=pickFlags(l1,seq,2,reserved(base));if(flags.length<2)return null;
-  return finish(Object.assign({},l1,{name:'Test P1 zwei Flaggen',id:'v3',inv:invOf(seq,1),flags}),3,300)},1));
-
-const meta=[['meadow','B1','red'],['winter','A2','blue'],['desert','D1','orange']];
-out.forEach((o,k)=>{const l=o.l;Object.assign(l,{theme:meta[k][0],style:meta[k][1],trackCol:meta[k][2],chapter:1});
-  console.log(l.name+': Gruppe '+l.groups.join('+')+', Lösungen '+o.n+' (zentriert '+o.cen+'), Par '+l.par+', Teile '+JSON.stringify(l.inv)+', Flaggen '+JSON.stringify(l.flags)+'\n  Beispiel '+o.ex);
-  console.log(board(l,o.ex)+'\n')});
-const clean=out.map(o=>{const l=Object.assign({},o.l);delete l.target_;return l});
-fs.writeFileSync('varianz_test.json',JSON.stringify(clean));console.log('geschrieben: varianz_test.json');
-}

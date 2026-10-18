@@ -31,20 +31,17 @@ Seit 2026-10-12 weicht der Quellstand von der veröffentlichten Version ab (neue
 - Einmalig: `npm install`
 - Bauen: `cd hb4 && python3 build.py` → `index.html` im Projektordner (wird mit committet, damit GitHub Pages sie ausliefern kann)
 - Tests (nach dem Bauen, in `hb4/`): `node phystest.js` (Physik + Lösbarkeit aller Level und Pool-Rätsel, ohne Browser, ~15 s), `node test3.js` (alle 24 Level im Browser, ~6 min; Teilmenge: `node test3.js 3 8`), `node stalltest.js` (Looping ohne Schwung), `node test2.js` (Menü + Zufallsmodus), `node teiletest.js` (neue Teile bauen und befahren; vorher `python3 build.py teile`), `node soundtest.js` (Ton), `node musiktest.js` (nur ein Musikstück gleichzeitig), `node tipptest.js` (jedes Level nur per Tipp lösen, ~10 min). Screenshots landen in `hb4/out/`.
-- Varianz-Vorschau: `node varianz.js` → `varianz_test.json`; `python3 build.py varianz` → `vorschau.html` im Projektordner (V1–V3 spielbar, wird mit committet); `node vtest.js` spielt sie durch.
 - Nach JEDER Änderung: bauen, dann Tests, dann erst melden.
 
 ## Bekannte Lücken
-- `hb5/parts.js` fehlt. `hb5/stations.js` ruft daraus 16 Funktionen auf (tower, cone, gableRoof2, dormer, stoneTex …), sie stehen nirgends sonst. Für das Spiel unnötig (fertige `hb4/station_*.json` genügen); nur zum Neuerzeugen der Stationen nötig. Stationen ändern = JSON direkt bearbeiten oder parts.js neu schreiben.
-- `levels.json` fehlt; nur `test1.js` und `gen3.js` (alt) brauchen sie.
-- `test1.js`, `themes.js`, `loopsheet.js`, `loopfour.js` nach der Pfad-Umstellung nicht neu geprüft (`test2.js` läuft).
+- Stationsgrafiken gibt es nur als fertige `hb4/station_*.json`; der alte Generator (`hb5/`, unvollständig) wurde am 2026-10-18 entfernt. Stationen ändern = JSON direkt bearbeiten.
+- `pool.json` (Zufall-Rückfall) hat keinen Generator mehr (alte `gen*.js` am 2026-10-18 entfernt).
 - Senioren sind nicht lösbar: jede Strecke braucht ≥ 2 Kurven und 3 Abfahrten, das übersteigt ihr Übelkeitslimit (3). Zwei Gruppen gleichzeitig (Kinder+Familien) fand der Generator nicht.
-- `sim.js` (alt) stürzt bei Leveln ohne Lösung im kleinen Budget ab.
 - Booster dürfen den Zug über die Lifthill-Höhe bringen (Energie von außen); `phystest.js` nimmt das aus.
 - `hb4/icon-512.png` gibt es nicht mehr; `build.py` bettet nur das 180er-Icon ein (wie in der veröffentlichten Version).
 
 ## Geplant, noch NICHT gebaut (nur auf Auftrag)
-Varianz-Paket ist umgesetzt (Phase 1 Testvarianten, neue Teile, Phase 2 Level).
+Varianz-Paket ist umgesetzt. Steuerung bleibt unverändert bis zu einem möglichen Port auf eine Retro-Handheld-Konsole (nur recherchiert, nicht beschlossen).
 Nur besprochen, nicht beschlossen: Kreuzungen, Steilabfahrt, Tunnel.
 Weitere offene Punkte: Tagesrätsel; Senioren (siehe Bekannte Lücken); `pool.json` (Zufall-Fallback) enthält nur alte Teile.
 
