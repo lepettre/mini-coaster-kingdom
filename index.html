@@ -337,6 +337,8 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
   // spine = Mittelrohr, shade = Schienen-Unterseite dunkel, sup = Stützen nur am aufrechten Teil
   // r = Abstand Schiene–Drehachse in Kacheln (klein = Heartline Roll, groß = Korkenzieher), hill = Bogen nach oben (Ebenen);
   // Höhe zählt in Ebenen, 1 Kachel = CKZ Ebenen, damit die Bahn ein echter Kreis um die Achse ist
+  // LK: Blicktiefe je Höhe im Looping (Kamera von schräg oben: höher = näher)
+  let LK = 1;
   const CKZ = 2, CK = { r: .2, hill: 0, ease: 'glatt', spine: true, shade: true, sup: true }; // H1 Heartline Roll (Jan, 2026-10-13)
   function setCK(o) { Object.assign(CK, o); }
   const LDEL = .35, LDR = 1.0, smt = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
@@ -662,7 +664,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     for (let k = 0; k < Sm.length - 1; k++) {
       const a = Sm[k], b = Sm[k + 1]; if (b.brk) continue;
       let dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy); if (l > 1e-4) { dx /= l; dy /= l; pn = [-dy, dx]; } let nx = pn[0], ny = pn[1]; if (a.ty === 'L' && a.ev) { nx = -a.ev[1]; ny = a.ev[0]; }
-      items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ls || 0) * .03, f: c => {
+      items.push({ d: (a.x + a.y + b.x + b.y) / 2 + (a.z + b.z) * .012 + (a.ty === 'L' && pcs[a.pi] ? LK * ((a.z + b.z) / 2 - pcs[a.pi].z0) : 0), f: c => {
         if (a.sup && a.z > .25 && !overX(a.pi) && a.ty !== 'S' && a.ty !== 'L' && !(CK.sup && a.ty === 'C' && Math.cos(a.rot || 0) < .9)) {
           const top = a.z - .05;
           [[-1, R.stone[2]], [1, R.stone[4]]].forEach(cc => { const g0 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], 0), g1 = P(a.x + nx * .12 * cc[0], a.y + ny * .12 * cc[0], top); pl(c, g0[0], g0[1], g1[0], g1[1], cc[1], 2); });
@@ -714,7 +716,9 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     if (S.cars) S.cars.forEach((cs, ci) => {
       const q = posAt(S.ridePath, cs), cz = q.z + .08, cp = P(q.x, q.y, q.z); boxes.push([cp[0] - 40, cp[1] - 50, 80, 90]);
       if (q.ty === 'W') dyn.push({ d: q.x + q.y + .9, f: c2 => { for (let k = 0; k < 14; k++) { const a = hsh(k, ci, Math.floor(t * 12)) * 6.28, r = 6 + hsh(k, ci + 7, Math.floor(t * 12)) * 12; rect(c2, cp[0] + Math.cos(a) * r, cp[1] - 4 - Math.abs(Math.sin(a)) * r * .9, 2, 2, k % 3 ? '#FFFFFF' : R.water[3]); } } });
-      dyn.push({ d: q.x + q.y + .5 + q.z * .02, f: c2 => {
+      // im Looping nach Blicktiefe (x+y+LK·Höhe im Looping) sortiert, damit vordere Schienen den Wagen auf der Rückseite verdecken
+      const lz0 = q.ty === 'L' && run.track[q.pi] ? run.track[q.pi].z0 : null;
+      dyn.push({ d: lz0 !== null ? q.x + q.y + q.z * .012 * 2 + LK * (q.z - lz0) + .06 : q.x + q.y + .5 + q.z * .02, f: c2 => {
         if ((q.ty === 'L' && q.phi !== undefined) || (q.ty === 'C' && q.rot !== undefined)) {
           let N, rv; if (q.ty === 'L') { const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi); N = [-ev[0] * sn, -ev[1] * sn, cs]; rv = [-ev[1], ev[0], 0]; } else { const sn = Math.sin(q.rot), cs = Math.cos(q.rot), cp = q.cp; N = [-cp[0] * sn, -cp[1] * sn, cs]; rv = [cp[0] * cs, cp[1] * cs, sn]; }
           const F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
@@ -757,7 +761,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
 
   function loadStation(json) { return Promise.all(Object.keys(json).map(k => new Promise(res => { const im = new Image(); im.onload = () => { const cv = MK(im.width, im.height); cv.getContext('2d').drawImage(im, 0, 0); json[k].cv = cv; res(); }; im.onerror = res; im.src = json[k].src; }))).then(() => json); }
   function setPalette(name) { R.grass = name === 'coast' ? R.cgrass : R0.grass; }
-  const api = { setCK, setPalette, loadStation, layout, draw, makeStatic, quantize, makeBgArea, cloud, makeGround, makeDecor, buildPath, posAt, tileCenter, proj, GCOL, R, TW, TH, ZH };
+  const api = { setLK: v => { LK = v; }, setCK, setPalette, loadStation, layout, draw, makeStatic, quantize, makeBgArea, cloud, makeGround, makeDecor, buildPath, posAt, tileCenter, proj, GCOL, R, TW, TH, ZH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HBR = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
