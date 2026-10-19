@@ -89,10 +89,14 @@ function pieceIcon(k,x,y){
   // Korkenzieher (K2): Schienen drehen sich einmal um das graue Mittelrohr, so schmal wie das Gleis; hintere Hälfte dunkel
   else if(k==='C'){ui.fr(x+9,y,2,20,'#8A8F9A');const P=[];for(let j=0;j<20;j++){const a=j/20*Math.PI*2;[0,Math.PI].forEach(ph=>P.push({x:Math.round(9.5+3*Math.cos(a+ph)),j,f:Math.sin(a+ph)>0}))}
     P.filter(p=>!p.f).forEach(p=>ui.fr(x+p.x-1,y+p.j,3,1,'#5A1310'));P.filter(p=>p.f).forEach(p=>{ui.fr(x+p.x-1,y+p.j,3,1,'#D8312B');ui.px(x+p.x-1,y+p.j,'#F27A66')})}
-  // Looping S1 (Jan 2026-10-19): Seitenansicht, Fahrt von links nach rechts, Kreis oben, Auslauf liegt vorn
-  else if(k==='P'){const st=pts=>{[[2.6,'#7A1410'],[1.6,'#D8312B']].forEach(([r,c])=>pts.forEach(q=>{for(let j=Math.floor(q[1]-r);j<=q[1]+r;j++)for(let i=Math.floor(q[0]-r);i<=q[0]+r;i++)if(i>=0&&j>=0&&i<20&&j<20&&(i+.5-q[0])**2+(j+.5-q[1])**2<=r*r)ui.px(x+i,y+j,c)}))},
-    seg=(f,n)=>{const P=[];for(let t=0;t<=n;t++)P.push(f(t/n));return P};
-    st(seg(t=>[-1+11*t,13.5],40));st(seg(t=>{const a=Math.PI/2-2*Math.PI*t;return[10+6*Math.cos(a),7.5+6*Math.sin(a)]},200));st(seg(t=>[10+11*t,13.5],40))}
+  // Looping (Jan 2026-10-19): Seitenansicht wie eine echte Fahrt – flach rein, tropfenförmig hoch, kopfüber, runter,
+  // seitlich versetzt kreuzen (Auslauf vorn), flach raus. Band 5 px mit heller Kante wie die anderen Teile.
+  else if(k==='P'){const B5=['#7A1410','#D8312B','#D8312B','#F27A66','#7A1410'],a=1,b=6,sy=1.1,cy=9,yb=cy+sy*b,xl=10-a*Math.PI,xr=10+a*Math.PI;
+    const tro=(f0,f1)=>{const P=[];for(let n=0;n<=60;n++){const f=f0+(f1-f0)*n/60;P.push([10+a*f-b*Math.sin(f),cy-sy*b*Math.cos(f)])}return P};
+    const band=pts=>{for(let j=0;j<20;j++)for(let i=0;i<20;i++){const qx=i+.5,qy=j+.5;let best=9,sd=0;
+      for(let k=0;k<pts.length-1;k++){const [ax,ay]=pts[k],[bx,by]=pts[k+1],dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((qx-ax)*dx+(qy-ay)*dy)/l2)),d=Math.hypot(ax+t*dx-qx,ay+t*dy-qy);if(d<best){best=d;sd=-Math.sign(dx*(qy-ay)-dy*(qx-ax))}}
+      if(best<2.5){const f=Math.floor(best*sd+2.5);if(f>=0&&f<5)ui.px(x+i,y+j,B5[f])}}};
+    band([[-2,yb],[xl,yb]].concat(tro(-Math.PI,.4)));band(tro(-.2,Math.PI).concat([[xr,yb],[22,yb]]))}
 }
 
 // ---------- Layout ----------
