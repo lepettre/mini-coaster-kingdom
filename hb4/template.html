@@ -70,10 +70,10 @@ function face(x,y,kind){ui.fr(x+1,y,10,12,'#FFFFFF');ui.fr(x,y+1,12,10,'#FFFFFF'
 function pieceIcon(k,x,y){
   ui.fr(x,y,20,20,'#5DAE34');for(let j=0;j<20;j++)for(let i=(j&1);i<20;i+=2)ui.px(x+i,y+j,'#4F9A2B');
   const tr=(px_,py_)=>{ui.fr(px_-2,py_-2,5,5,'#7A1410');};const tr2=(px_,py_)=>{ui.fr(px_-1,py_-1,3,3,'#D8312B');};
-  // Gleis wie im Park: zwei schmale Schienen auf dunklen Holzschwellen; Anstieg/Abfahrt mit gelbem Pfeil am Rand
+  // Gleis: zwei schmale Schienen ohne Querstriche; Anstieg/Abfahrt mit gelbem Pfeil am Rand
   const rail=rx=>{ui.fr(x+rx-1,y,3,20,'#4A0E0B');ui.fr(x+rx,y,1,20,'#F27A66')};
-  const straight=()=>{for(let t=1;t<20;t+=4)ui.fr(x+5,y+t,10,2,'#6B4A2E');rail(7);rail(12)};
-  const arrow=up=>{ui.fr(x+14,y+5,6,11,'#3A1512');const c='#FFE27A',hy=up?6:14,d=up?1:-1;ui.fr(x+16,y+(up?9:6),2,6,c);ui.fr(x+16,y+hy,2,1,c);ui.fr(x+15,y+hy+d,4,1,c);ui.fr(x+14,y+hy+2*d,6,1,c)};
+  const straight=()=>{rail(7);rail(12)};
+  const arrow=up=>{ui.fr(x+14,y+1,6,11,'#3A1512');const c='#FFE27A',hy=up?2:10,d=up?1:-1;ui.fr(x+16,y+(up?5:3),2,5,c);ui.fr(x+16,y+hy,2,1,c);ui.fr(x+15,y+hy+d,4,1,c);ui.fr(x+14,y+hy+2*d,6,1,c)};
   const arc=(dir)=>{const pts=[];for(let a=0;a<=20;a++){const t=a/20*Math.PI/2;const cx=dir>0?20:0,sx=dir>0?-1:1;pts.push([Math.round(cx+sx*10*Math.cos(t)),Math.round(19-10*Math.sin(t)+0)])}pts.forEach(p=>tr(x+p[0],y+p[1]));pts.forEach(p=>tr2(x+p[0],y+p[1]));ui.fr(x+8,y+19,4,1,'#D8312B')};
   if(k==='G')straight();
   else if(k==='R')arc(1);
@@ -83,7 +83,9 @@ function pieceIcon(k,x,y){
   else if(k==='H'){straight();for(let t=3;t<18;t+=3)ui.fr(x+7,y+t,6,2,t%2?'#F2C12E':'#2B2B2B')}
   else if(k==='V'){straight();[4,10].forEach(t=>{ui.line(x+5,y+t+5,x+10,y+t,'#F5A04A');ui.line(x+10,y+t,x+15,y+t+5,'#F5A04A');ui.line(x+5,y+t+6,x+10,y+t+1,'#B5560F');ui.line(x+10,y+t+1,x+15,y+t+6,'#B5560F')})}
   else if(k==='W'){ui.fr(x,y,20,20,'#2F7BC8');for(let j=0;j<20;j+=4)ui.fr(x+(j%8),y+j,6,1,'#7DBBEE');straight();[[3,5],[15,8],[4,13],[16,15],[2,9]].forEach(p=>ui.fr(x+p[0],y+p[1],2,2,'#FFFFFF'))}
-  else if(k==='C'){for(let j=0;j<20;j++){const a=j/19*Math.PI*2,o=Math.round(4*Math.sin(a)),f=Math.cos(a)>0;ui.fr(x+9+o,y+j,3,1,f?'#D8312B':'#7A1410');ui.fr(x+9-o,y+j,3,1,f?'#7A1410':'#F27A66')}ui.fr(x+16,y+2,3,1,'#FFFFFF');ui.fr(x+16,y+17,3,1,'#FFFFFF');ui.fr(x+17,y+3,1,14,'#FFFFFF')}
+  // Korkenzieher (K2): Schienen drehen sich einmal um das graue Mittelrohr, so schmal wie das Gleis; hintere Hälfte dunkel
+  else if(k==='C'){ui.fr(x+9,y,2,20,'#8A8F9A');const P=[];for(let j=0;j<20;j++){const a=j/20*Math.PI*2;[0,Math.PI].forEach(ph=>P.push({x:Math.round(9.5+2.5*Math.cos(a+ph)),j,f:Math.sin(a+ph)>0}))}
+    P.filter(p=>!p.f).forEach(p=>ui.fr(x+p.x-1,y+p.j,2,1,'#5A1310'));P.filter(p=>p.f).forEach(p=>{ui.fr(x+p.x-1,y+p.j,2,1,'#D8312B');ui.px(x+p.x-1,y+p.j,'#F27A66')})}
   else if(k==='P'){for(let a=0;a<48;a++){const t=a/48*Math.PI*2;const px_=Math.round(x+10+6*Math.cos(t)),py_=Math.round(y+8+6*Math.sin(t));tr(px_,py_)}for(let a=0;a<48;a++){const t=a/48*Math.PI*2;tr2(Math.round(x+10+6*Math.cos(t)),Math.round(y+8+6*Math.sin(t)))}ui.fr(x+8,y+14,4,6,'#D8312B')}
 }
 
