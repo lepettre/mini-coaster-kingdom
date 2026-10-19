@@ -1,6 +1,6 @@
 (function(root){
   'use strict';
-  // Zufallsrätsel im Browser. make(spec, seed, versuche, opts):
+  // Zufallslevel im Browser. make(spec, seed, versuche, opts):
   // opts.bases = Grundrisse (Level-Objekte mit n, station, ret, deco, gate, target), opts.kinds = freigespielte Teile,
   // opts.flags = höchstens so viele Pflicht-Flaggen. Ohne opts: alter Grundriss, nur Grundteile.
   const HB=root.HB;let BASE=null;
@@ -37,7 +37,7 @@
     for(let a=0;a<(attempts||2);a++){
       const base=bases[Math.floor(R()*bases.length)],res=reserved(base),N=base.n;
       const specials=kinds0.filter(k=>SPECIAL.includes(k)),must=specials.length&&R()<.75?specials[Math.floor(R()*specials.length)]:null;
-      // Splash nur, wenn er Pflichtteil ist oder selten zufällig – sonst prägt er fast jedes Rätsel
+      // Splash nur, wenn er Pflichtteil ist oder selten zufällig – sonst prägt er fast jedes Level
       const kinds=kinds0.filter(k=>k!=='W'||must==='W'||R()<.25);
       const w=walk(R,base,spec,kinds,must,spec.budget||8000);if(!w)continue;
       // Strecke nachbauen: Splash-Felder werden Teich

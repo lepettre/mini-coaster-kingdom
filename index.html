@@ -189,7 +189,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
 
 (function(root){
   'use strict';
-  // Zufallsrätsel im Browser. make(spec, seed, versuche, opts):
+  // Zufallslevel im Browser. make(spec, seed, versuche, opts):
   // opts.bases = Grundrisse (Level-Objekte mit n, station, ret, deco, gate, target), opts.kinds = freigespielte Teile,
   // opts.flags = höchstens so viele Pflicht-Flaggen. Ohne opts: alter Grundriss, nur Grundteile.
   const HB=root.HB;let BASE=null;
@@ -226,7 +226,7 @@ body{display:flex;justify-content:center;touch-action:none;-webkit-user-select:n
     for(let a=0;a<(attempts||2);a++){
       const base=bases[Math.floor(R()*bases.length)],res=reserved(base),N=base.n;
       const specials=kinds0.filter(k=>SPECIAL.includes(k)),must=specials.length&&R()<.75?specials[Math.floor(R()*specials.length)]:null;
-      // Splash nur, wenn er Pflichtteil ist oder selten zufällig – sonst prägt er fast jedes Rätsel
+      // Splash nur, wenn er Pflichtteil ist oder selten zufällig – sonst prägt er fast jedes Level
       const kinds=kinds0.filter(k=>k!=='W'||must==='W'||R()<.25);
       const w=walk(R,base,spec,kinds,must,spec.budget||8000);if(!w)continue;
       // Strecke nachbauen: Splash-Felder werden Teich
@@ -997,7 +997,8 @@ function pieceIcon(k,x,y){
 // ---------- Layout ----------
 function setup(){
   // iPhone: Statusleiste oben und Home-Balken unten aussparen (sichere Ränder per env(safe-area-inset-*))
-  const sa=getComputedStyle(document.getElementById('sa')),st=parseFloat(sa.paddingTop)||0,sb=parseFloat(sa.paddingBottom)||0,vh=Math.min(window.innerHeight,window.visualViewport?window.visualViewport.height:1e9);
+  // Bei Geräten mit Statusleiste über dem Inhalt (Notch) zusätzlich 24 px Luft: neuere iOS-Versionen blenden unter der Statusleiste noch einen Streifen ab
+  const sa=getComputedStyle(document.getElementById('sa')),st0=parseFloat(sa.paddingTop)||0,st=st0>20?st0+24:st0,sb=parseFloat(sa.paddingBottom)||0,vh=Math.min(window.innerHeight,window.visualViewport?window.visualViewport.height:1e9);
   Wc=Math.min(window.innerWidth,520);Hc=Math.floor(vh-st-sb);cv.width=Wc;cv.height=Hc;cv.style.width=Wc+'px';cv.style.height=Hc+'px';cv.style.marginTop=st+'px';
   Wu=Math.floor(Wc/U);Hu=Math.floor(Hc/U);
   const bwH=132;lay.bw={x:3,y:Hu-3-bwH,w:Wu-6,h:bwH};lay.areaTop=16*U;lay.areaBottom=(lay.bw.y-2)*U;lay.areaH=lay.areaBottom-lay.areaTop;
@@ -1023,7 +1024,7 @@ function randLevel(base,diff,seed){const th=THEMES[(seed>>>3)%4];return Object.a
 function expandPool(e,seed){const b=LEVELS[0];return randLevel(Object.assign({},b,{blocked:e.b,inv:e.i,groups:e.g,par:e.p}),e.d,seed)}
 function playRandom(l){hintUsed=false;hintK=null;hintSeq=null;hintMsg='';inGame=true;LEVEL=l;stat=null;statKey='';busyMsg='';overlay=neuList().length?'neu':null;init()}
 function startRandom(diff){
-  lastDiff=diff;overlay='busy';busyMsg='Rätsel wird erzeugt';const t0=performance.now();
+  lastDiff=diff;overlay='busy';busyMsg='Level wird erzeugt';const t0=performance.now();
   const step=()=>{
     const seed=(Math.random()*1e9)|0;let l=null;try{l=HBG.make(SPECS[diff],seed,2,randOpts())}catch(e){l=null}
     if(l){playRandom(randLevel(l,diff,seed));return}
@@ -1032,11 +1033,11 @@ function startRandom(diff){
     if(e)playRandom(expandPool(e,seed));else{overlay='rand'}
   };setTimeout(step,30);
 }
-// Abzeichen: [id, Name, Bedingung]; gespeichert in saved.ab, Zähler für Zufallsrätsel in saved.zc
+// Abzeichen: [id, Name, Bedingung]; gespeichert in saved.ab, Zähler für Zufallslevel in saved.zc
 const BADGES=[['erste','Erste Fahrt','Eine Fahrt geschafft.'],['loop','Kopfüber','Erfolg mit Looping.'],['kork','Schraube','Erfolg mit Korkenzieher.'],
- ['nass','Nass geworden','Erfolg mit Splash.'],['kreuz','Brückenbau','Erfolg mit Kreuzung.'],['flag3','Fahnenjagd','3 Flaggen in einer Fahrt.'],
+ ['nass','Nass geworden','Erfolg mit Splash.'],['kreuz','Brückenbau','Erfolg mit Kreuzung.'],['flag3','Flaggenjagd','3 Flaggen in einer Fahrt.'],
  ['spar','Sparsam','Weniger Teile als Par.'],['k1','Wiese gemeistert','Kapitel 1 mit 3 Sternen.'],['k2','Winter gemeistert','Kapitel 2 mit 3 Sternen.'],
- ['k3','Wüste gemeistert','Kapitel 3 mit 3 Sternen.'],['k4','Küste gemeistert','Kapitel 4 mit 3 Sternen.'],['zufall','Zufallsprofi','5 Zufallsrätsel gelöst.'],
+ ['k3','Wüste gemeistert','Kapitel 3 mit 3 Sternen.'],['k4','Küste gemeistert','Kapitel 4 mit 3 Sternen.'],['zufall','Zufallsprofi','5 Zufallslevel geschafft.'],
  ['runden','Zuschauer','3 Runden zugeschaut.']];
 // Kreuzungen gibt es erst in Leveln mit cross:true (noch keine); bis dahin bleiben Erklärung und Abzeichen verborgen
 const CROSS=()=>LEVELS.some(l=>l.cross),BADGE=()=>BADGES.filter(b=>b[0]!=='kreuz'||CROSS());
@@ -1101,7 +1102,7 @@ function buildWin(){
   const sy=gy+66;ui.inset(b.x+5,sy,b.w-10,23,C.inset);
   let l1='',l2='';
   if(mode==='ride'){l1='Die Fahrt läuft.'}
-  else if(mode==='result'){l1=lap?'Der Zug fährt weiter Runden.':'Fahrt beendet.'}
+  else if(mode==='result'){l1=lap?'Der Zug dreht weiter Runden.':'Fahrt beendet.'}
   else if(run.stall){l1='Zu wenig Schwung.';l2='FAHRT zeigt, wo er hängt.'}
   else if(HB.ready(run)){const fj=HB.judge(run).flags;if(fj.hit<fj.n){l1='Strecke geschlossen,';l2='aber Flagge fehlt ('+fj.hit+'/'+fj.n+').'}else{l1='Strecke geschlossen.';l2='Jetzt FAHRT tippen.'}}
   else if(!sel){const fj=HB.judge(run).flags;l1='Wähle ein Teil.';l2=fj.n?'Flaggen befahren: '+fj.hit+'/'+fj.n:'Dann BAUEN tippen.'}
@@ -1205,7 +1206,7 @@ function menuWin(){
   const n=nextOpen(),cur=LEVELS[n];
   menuBtn('mplay',x,y0+66,w,inGame?'WEITER':'SPIELEN',()=>{if(inGame)overlay=null;else loadLevel(n)},inGame?(LEVEL.rnd?LEVEL.name:LEVEL.chapter+'-'+((lvIdx()%6)+1)+' '+LEVEL.name):cur.chapter+'-'+((n%6)+1)+' '+cur.name);
   menuBtn('mlev',x,y0+98,w,'LEVEL',()=>{overlay='levels';chap=Math.max(0,Math.floor(Math.max(0,inGame&&!LEVEL.rnd?lvIdx():n)/6))},'24 Level in 4 Kapiteln');
-  menuBtn('mrnd',x,y0+130,w,'ZUFALL',()=>{overlay='rand'},'Immer neue Rätsel');
+  menuBtn('mrnd',x,y0+130,w,'ZUFALL',()=>{overlay='rand'},'Immer neue Level');
   menuBtn('mbadge',x,y0+162,w,'ABZEICHEN',()=>{overlay='badges'},saved.ab.length+' von '+BADGE().length);
   menuBtn('mhelp',x,y0+194,w,'HILFE',()=>{overlay='help'});
   const st=totalStars()+' / '+LEVELS.length*3;star(Math.floor(Wu/2)-HBUI.textW(st)/2-16,y0+226,true);T(Math.floor(Wu/2)-Math.floor(HBUI.textW(st)/2)+2,y0+229,st,C.white,C.ink);
@@ -1224,7 +1225,7 @@ function levelsWin(){
 }
 function randWin(){
   const w=Math.min(176,Wu-10),h=134,p=dialogBase(w,h,'Zufall'),x=p.x,y=p.y;
-  T(x+8,y+16,'Jedes Rätsel ist neu.',C.txt);
+  T(x+8,y+16,'Jedes Level ist neu.',C.txt);
   const L3=[['Leicht','Kinder, Familien'],['Mittel','Familien, Teenager'],['Schwer','Teenager, Thrill-Fans']];
   L3.forEach((d,k)=>menuBtn('rz'+k,x+6,y+30+k*26,w-12,d[0],()=>startRandom(k),d[1]));
   ui.btn('rclose',x+Math.floor(w/2)-30,y+h-19,60,15,{fn:()=>{overlay='menu'},draw:(x2,y2)=>{T(x2+8,y2+4,'Zurück',C.txt)}});

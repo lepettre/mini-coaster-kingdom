@@ -12,8 +12,8 @@ Du baust in einem kleinen Freizeitpark eine Achterbahn – Teil für Teil, vom L
 - **Gäste:** Kinder, Familien, Teenager und Thrill-Fans wollen jeweils eine andere Mischung aus Aufregung und Übelkeit.
 - **Physik:** Der Zug braucht Schwung. Abfahrten geben Schwung, Anstiege und Kurven kosten ihn; ein Looping braucht viel davon. Wer zu wenig hat, bleibt hängen und rollt zurück.
 - **Teile:** Gerade, Kurven, Anstieg, Abfahrt, Looping, Bremse, Booster, Splash (durch einen Teich) und Korkenzieher.
-- **Rätsel:** Hindernisse, begrenzte Teile und rot-weiße Pflicht-Flaggen, über die die Strecke führen muss. Bis zu drei Sterne pro Level, dazu Abzeichen.
-- **Umfang:** 24 Level in 4 Landschaften (Wiese, Winter, Wüste, Küste) und ein Zufallsmodus, der neue Rätsel aus allem erzeugt, was schon freigespielt ist.
+- **Level:** Hindernisse, begrenzte Teile und rot-weiße Pflicht-Flaggen, über die die Strecke führen muss. Bis zu drei Sterne pro Level, dazu Abzeichen.
+- **Umfang:** 24 Level in 4 Landschaften (Wiese, Winter, Wüste, Küste) und ein Zufallsmodus, der neue Level aus allem erzeugt, was schon freigespielt ist.
 - **Fahrt:** Gäste reagieren mit Sprechblasen; nach einer erfolgreichen Fahrt dreht der Zug weiter seine Runden.
 - **Hilfe:** Tipp-Knopf, Erklärungen beim ersten Auftreten neuer Teile, Übersicht aller Teile.
 - **Ton:** Drehorgelmusik, Geräusche und fröhliche Fahrgast-Stimmen – alles im Spiel synthetisch erzeugt; per Knopf abschaltbar.
@@ -47,7 +47,7 @@ Das Projekt ist ein privates Hobby- und Lernprojekt. Es ist **nicht kommerziell*
 | `hb4/sound.js` | Musik, Geräusche und Stimmen per WebAudio |
 | `hb4/genb.js` | Zufallsgenerator im Browser |
 | `hb4/phase2.js`, `varianz.js`, `layouts.js`, `addsols.js` | Erzeugen der festen Level und ihrer Musterlösungen (Node) |
-| `hb4/levels24.json`, `pool.json` | Leveldaten, fester Vorrat an Zufallsrätseln (Rückfall) |
+| `hb4/levels24.json`, `pool.json` | Leveldaten, fester Vorrat an Zufallsleveln (Rückfall) |
 | `hb4/station_*.json` | fertige Stationsgrafiken der 4 Landschaften |
 | `hb4/build.py` | setzt alles zu `index.html` zusammen |
 | `hb4/*test*.js` | Tests (Browser per Puppeteer; `phystest.js` reines Node) |
@@ -58,7 +58,7 @@ Das Projekt ist ein privates Hobby- und Lernprojekt. Es ist **nicht kommerziell*
 npm install
 cd hb4
 python3 build.py        # erzeugt ../index.html
-node phystest.js        # Physik + Lösbarkeit aller Level und Vorrats-Rätsel (ohne Browser)
+node phystest.js        # Physik + Lösbarkeit aller Level und Vorrats-Level (ohne Browser)
 node test3.js           # alle 24 Level im Browser durchspielen
 node stalltest.js       # Hängenbleiben und Zurückrollen
 node test2.js           # Menü und Zufallsmodus
