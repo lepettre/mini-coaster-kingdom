@@ -89,7 +89,10 @@ function pieceIcon(k,x,y){
   // Korkenzieher (K2): Schienen drehen sich einmal um das graue Mittelrohr, so schmal wie das Gleis; hintere Hälfte dunkel
   else if(k==='C'){ui.fr(x+9,y,2,20,'#8A8F9A');const P=[];for(let j=0;j<20;j++){const a=j/20*Math.PI*2;[0,Math.PI].forEach(ph=>P.push({x:Math.round(9.5+3*Math.cos(a+ph)),j,f:Math.sin(a+ph)>0}))}
     P.filter(p=>!p.f).forEach(p=>ui.fr(x+p.x-1,y+p.j,3,1,'#5A1310'));P.filter(p=>p.f).forEach(p=>{ui.fr(x+p.x-1,y+p.j,3,1,'#D8312B');ui.px(x+p.x-1,y+p.j,'#F27A66')})}
-  else if(k==='P'){for(let a=0;a<48;a++){const t=a/48*Math.PI*2;const px_=Math.round(x+10+6*Math.cos(t)),py_=Math.round(y+8+6*Math.sin(t));tr(px_,py_)}for(let a=0;a<48;a++){const t=a/48*Math.PI*2;tr2(Math.round(x+10+6*Math.cos(t)),Math.round(y+8+6*Math.sin(t)))}ui.fr(x+8,y+14,4,6,'#D8312B')}
+  // Looping S1 (Jan 2026-10-19): Seitenansicht, Fahrt von links nach rechts, Kreis oben, Auslauf liegt vorn
+  else if(k==='P'){const st=pts=>{[[2.6,'#7A1410'],[1.6,'#D8312B']].forEach(([r,c])=>pts.forEach(q=>{for(let j=Math.floor(q[1]-r);j<=q[1]+r;j++)for(let i=Math.floor(q[0]-r);i<=q[0]+r;i++)if(i>=0&&j>=0&&i<20&&j<20&&(i+.5-q[0])**2+(j+.5-q[1])**2<=r*r)ui.px(x+i,y+j,c)}))},
+    seg=(f,n)=>{const P=[];for(let t=0;t<=n;t++)P.push(f(t/n));return P};
+    st(seg(t=>[-1+11*t,13.5],40));st(seg(t=>{const a=Math.PI/2-2*Math.PI*t;return[10+6*Math.cos(a),7.5+6*Math.sin(a)]},200));st(seg(t=>[10+11*t,13.5],40))}
 }
 
 // ---------- Layout ----------
