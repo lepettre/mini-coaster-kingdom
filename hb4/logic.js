@@ -57,14 +57,14 @@
     const kExit = K.type === 'H' ? Math.min(h.k - FRIC.H, D.brakeMax) : K.type === 'V' ? Math.min(D.kMax, h.k + D.boost) - FRIC.V : h.k - (z1 - h.z) - FRIC[K.type];
     const len = K.len || 1, i2 = i + DV[h.dir][0] * (len - 1), j2 = j + DV[h.dir][1] * (len - 1), out = (a, b) => a < 0 || b < 0 || a >= n || b >= n;
     if (len > 1) { g.i2 = i2; g.j2 = j2; }
-    if (run.stall) { g.valid = false; g.reason = 'Zug steht schon'; }
-    else if ((run.inv[kind] || 0) <= 0) { g.valid = false; g.reason = 'Keine mehr'; }
-    else if (out(i, j) || out(i2, j2)) { g.valid = false; g.reason = 'Rand des Parks'; }
-    else if ((occupied(run, i, j, K.type === 'W') && !(g.cross = crossOK(run, K, h, i, j, h.dir))) || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Feld belegt'; }
-    else if (K.type === 'W' && !run.pond.has(i + ',' + j)) { g.valid = false; g.reason = 'Nur auf einem Teichfeld'; }
-    else if (K.type === 'W' && h.z !== 0) { g.valid = false; g.reason = 'Nur am Boden'; }
-    else if (z1 < 0) { g.valid = false; g.reason = 'Schon am Boden'; }
-    else if (z1 > run.zmax) { g.valid = false; g.reason = 'Zu hoch'; }
+    if (run.stall) { g.valid = false; g.reason = 'Der Zug hängt schon fest'; }
+    else if ((run.inv[kind] || 0) <= 0) { g.valid = false; g.reason = 'Keine mehr übrig'; }
+    else if (out(i, j) || out(i2, j2)) { g.valid = false; g.reason = 'Hier endet der Park'; }
+    else if ((occupied(run, i, j, K.type === 'W') && !(g.cross = crossOK(run, K, h, i, j, h.dir))) || (len > 1 && occupied(run, i2, j2))) { g.valid = false; g.reason = 'Das Feld ist belegt'; }
+    else if (K.type === 'W' && !run.pond.has(i + ',' + j)) { g.valid = false; g.reason = 'Er geht nur auf einem Teich'; }
+    else if (K.type === 'W' && h.z !== 0) { g.valid = false; g.reason = 'Er geht nur am Boden'; }
+    else if (z1 < 0) { g.valid = false; g.reason = 'Die Strecke ist schon unten'; }
+    else if (z1 > run.zmax) { g.valid = false; g.reason = 'Das wäre zu hoch'; }
     else if (K.type === 'L' && h.k < D.loopK) { g.stall = true; g.stallF = .35; g.reason = 'Zu wenig Schwung'; }
     else if (K.type === 'C' && h.k < D.corkK) { g.stall = true; g.stallF = .3; g.reason = 'Zu wenig Schwung'; }
     else if (kExit < 0.2) { const loss = h.k - kExit; g.stall = true; g.stallF = Math.min(.9, Math.max(.1, (h.k - .2) / (loss || 1))); g.reason = 'Zu wenig Schwung'; }

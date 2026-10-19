@@ -343,7 +343,7 @@
   // Gast als kleine Pixelfigur (Fußpunkt x,y): Haare, Gesicht mit Augen, Hemd mit Schatten, Arme mit Händen, Hose, Schuhe.
   // step: Gehphase 0/1 (Beine und Arme schwingen), up: Arme hoch, kid: kleiner, mit Luftballon, v: Variante (Hose, Mütze)
   const PANTS = ['#3A4A78', '#5A4632', '#2E2E3A', '#6B6F7A'];
-  function guest(c, x, y, col, hair, step, up, kid, v) {
+  function guest(c, x, y, col, hair, step, up, kid, v, face) {
     v = v || 0; const k = kid ? 0 : 1, hy = y - 12 - k * 2, ty = y - 8 - k, legH = 3 + k, dk = shade(col, .7), pc = PANTS[v % PANTS.length];
     // Beine und Schuhe
     rect(c, x - 2, y - legH, 2, legH - (step ? 1 : 0), pc); rect(c, x, y - legH, 2, legH - (step ? 0 : 1), shade(pc, .8));
@@ -355,9 +355,9 @@
     else { const a = step ? 1 : 0; rect(c, x - 3, ty + 1 - a, 1, 3, col); rect(c, x + 2, ty + a, 1, 3, dk); rect(c, x - 3, ty + 4 - a, 1, 1, R.skin[2]); rect(c, x + 2, ty + 3 + a, 1, 1, R.skin[1]); }
     // Kopf: Gesicht, Schatten, Augen, Haare oder Mütze
     rect(c, x - 2, hy, 4, 4, R.skin[2]); rect(c, x + 1, hy + 1, 1, 3, R.skin[1]); rect(c, x - 2, hy + 3, 4, 1, R.skin[1]);
-    rect(c, x - 1, hy + 1, 1, 1, R.base[0]); rect(c, x + 1, hy + 1, 1, 1, R.base[0]);
-    if (v % 3 === 1 && !kid) { rect(c, x - 2, hy - 2, 4, 2, R.red[2]); rect(c, x - 3, hy, 3, 1, R.red[1]); }
-    else { rect(c, x - 2, hy - 1, 4, 2, hair); rect(c, x + 1, hy, 1, 2, hair); rect(c, x - 2, hy - 1, 2, 1, shade(hair, 1.25)); }
+    if (face === 'b') rect(c, x - 2, hy, 4, 3, hair); else { rect(c, x - 1, hy + 1, 1, 1, R.base[0]); rect(c, x + 1, hy + 1, 1, 1, R.base[0]); }
+    if (v % 3 === 1 && !kid) { rect(c, x - 2, hy - 2, 4, 2, R.red[2]); if (face !== 'b') rect(c, x - 3, hy, 3, 1, R.red[1]); }
+    else { rect(c, x - 2, hy - 1, 4, 2, hair); if (face !== 'b') rect(c, x + 1, hy, 1, 2, hair); rect(c, x - 2, hy - 1, 2, 1, shade(hair, 1.25)); }
     if (kid) { rect(c, x + 4, hy - 7, 3, 4, R.red[3]); rect(c, x + 4, hy - 7, 1, 1, '#FFFFFF'); rect(c, x + 5, hy - 3, 1, 4, '#FFFFFF'); rect(c, x + 3, hy + 1, 2, 1, '#FFFFFF'); }
   }
   // Symbole 7×7 als Zeilen; Zeichen: r rot, y gelb, p rosa, g grün, b blau, k dunkel
@@ -378,11 +378,18 @@
   // Wagen in eigener Farbe (nicht Streckenfarbe): cremeweiß, vorderer Wagen mit Schnauze und Scheinwerfer
   const CAR = ['#E9E3D3', '#C9C1AE', '#F2C12E', '#6B6457'];
   // Fahrgast im Wagen (Kopfmitte hx,hy): Shirt mit Schatten, Gesicht mit Augen und Schatten, Haare mit Glanz oder Mütze, Arme hoch mit Händen
-  function rider(c, hx, hy, gc, hair, up, cap) {
+  // face: 'f' Gesicht (fährt auf den Betrachter zu), 'b' Hinterkopf (fährt weg), 'l'/'r' Profil nach links/rechts
+  function head(c, hx, hy, hair, cap, face) {
+    rect(c, hx - 2, hy - 2, 4, 4, R.skin[2]); rect(c, hx + 1, hy - 1, 1, 3, R.skin[1]);
+    if (face === 'b') rect(c, hx - 2, hy - 2, 4, 3, hair);
+    else if (face === 'f') { rect(c, hx - 1, hy, 1, 1, R.base[0]); rect(c, hx + 1, hy, 1, 1, R.base[0]); }
+    else { const s = face === 'r' ? 1 : -1; rect(c, hx + s, hy, 1, 1, R.base[0]); rect(c, s > 0 ? hx - 2 : hx + 1, hy - 2, 1, 3, hair); }
+    if (cap) { rect(c, hx - 2, hy - 3, 4, 2, R.red[2]); if (face !== 'b') rect(c, face === 'r' ? hx + 1 : hx - 3, hy - 2, 2, 1, R.red[1]); }
+    else { rect(c, hx - 2, hy - 3, 4, 2, hair); if (face === 'f') rect(c, hx + 1, hy - 1, 1, 1, hair); rect(c, hx - 2, hy - 3, 1, 1, shade(hair, 1.3)); }
+  }
+  function rider(c, hx, hy, gc, hair, up, cap, face) {
     rect(c, hx - 2, hy + 2, 4, 3, gc); rect(c, hx + 1, hy + 2, 1, 3, shade(gc, .7));
-    rect(c, hx - 2, hy - 2, 4, 4, R.skin[2]); rect(c, hx + 1, hy - 1, 1, 3, R.skin[1]); rect(c, hx - 1, hy, 1, 1, R.base[0]); rect(c, hx + 1, hy, 1, 1, R.base[0]);
-    if (cap) { rect(c, hx - 2, hy - 3, 4, 2, R.red[2]); rect(c, hx - 3, hy - 2, 2, 1, R.red[1]); }
-    else { rect(c, hx - 2, hy - 3, 4, 2, hair); rect(c, hx + 1, hy - 1, 1, 1, hair); rect(c, hx - 2, hy - 3, 1, 1, shade(hair, 1.3)); }
+    head(c, hx, hy, hair, cap, face || 'f');
     if (up) { rect(c, hx - 4, hy - 1, 1, 3, gc); rect(c, hx + 3, hy - 1, 1, 3, shade(gc, .7)); rect(c, hx - 4, hy - 4, 1, 3, R.skin[2]); rect(c, hx + 3, hy - 4, 1, 3, R.skin[1]); }
   }
   const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
@@ -462,8 +469,8 @@
     if ((S.pond || []).length) { const q = S.pond[Math.floor(S.pond.length / 2)], dx = Math.sin(t * .5) * .3, dy = Math.cos(t * .4) * .2, p = P(q[0] + .5 + dx, q[1] + .5 + dy, 0), right = Math.cos(t * .5) > 0; dyn.push({ d: q[0] + q[1] + 1 + dx + dy, f: c2 => { rect(c2, p[0] - 3, p[1] - 3, 7, 4, '#FFFFFF'); rect(c2, p[0] + (right ? 3 : -5), p[1] - 5, 3, 3, '#FFFFFF'); rect(c2, p[0] + (right ? 5 : -7), p[1] - 4, 2, 1, R.orange[3]); rect(c2, p[0] + (right ? 4 : -4), p[1] - 5, 1, 1, R.base[0]); rect(c2, p[0] - 4, p[1] + 1, 9, 1, R.water[3]); } }); }
     const qy = sy + 1.5;
     // Gäste bleiben auf dem gepflasterten Stationsplatz (Felder sx..sx+1, Zeile sy+1): Schlange vom Eingangstor zum Bahnsteig, Zuschauer am Rand
-    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid, g); } }); }
-    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1, g + 5); } }); });
+    for (let g = 0; g < 5; g++) { const ph = (t * .08 + g / 5) % 1, xx = (sx + 1.92) - ph * .95, yy = qy + (g % 2 ? .14 : -.14) - Math.max(0, (sx + 1.35 - xx)) * 1.1, kid = g % 3 === 0; dyn.push({ d: xx + yy + .3, f: c2 => { const p = P(xx, Math.max(yy, sy + 1.08), 0); guest(c2, p[0], p[1], GCOL[g % GCOL.length], HAIR[g % HAIR.length], Math.floor(t * 4 + g) & 1, false, kid, g, 'b'); } }); }
+    [[sx + .25, sy + 1.82, 0], [sx + .7, sy + 1.88, 1], [sx + 1.55, sy + 1.86, 2]].forEach((q, g) => { dyn.push({ d: q[0] + q[1] + .2, f: c2 => { const p = P(q[0], q[1], 0); guest(c2, p[0], p[1], GCOL[(g + 3) % GCOL.length], HAIR[(g + 1) % HAIR.length], 0, S.cars && Math.sin(t * 6 + g) > 0, g === 1, g + 5, g === 1 ? 'f' : 'b'); } }); });
     const Sm = S.path.S;
     for (let k = 0; k < Sm.length - 1; k++) { const a = Sm[k]; if (a.ty !== 'T' || Sm[k + 1].brk) continue; const on = (Math.floor(t * 9) + k) % 2, cp = P(a.x, a.y, a.z); dyn.push({ d: a.x + a.y + a.z * .012 + .02, f: c2 => { rect(c2, cp[0], cp[1] - 1, 2, 3, on ? R.yellow[3] : R.base[3]); rect(c2, cp[0] + 3, cp[1] - 1, 2, 3, on ? R.base[3] : R.yellow[3]); } }); }
     if (S.cars) S.cars.forEach((cs, ci) => {
@@ -483,13 +490,13 @@
           return;
         }
         const dn = q.dz < -.02, loop = q.ty === 'L', hl = Math.hypot(q.dx, q.dy) || 1, rr = [-q.dy / hl, q.dx / hl];
-        const fx = q.dx / hl, fy = q.dy / hl;
+        const fx = q.dx / hl, fy = q.dy / hl, fz = fx + fy, fface = fz > .35 ? 'f' : fz < -.35 ? 'b' : (fx - fy > 0 ? 'r' : 'l');
         // Räder (dunkel, unter dem Wagenkasten)
         [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(w => { const p = P(q.x + fx * .12 * w[0] + rr[0] * .11 * w[1], q.y + fy * .12 * w[0] + rr[1] * .11 * w[1], cz - .01); rect(c2, p[0] - 1, p[1] - 1, 2, 2, R.base[0]); });
         obox(c2, P, q.x, q.y, cz + .06, [q.dx, q.dy, q.dz], .17, .12, .08, CAR[0], CAR[3]);
         obox(c2, P, q.x - q.dx / hl * .02, q.y - q.dy / hl * .02, cz + .15, [q.dx, q.dy, q.dz], .09, .08, .018, R.base[1], null);
         if (ci === 0) { obox(c2, P, q.x + fx * .22, q.y + fy * .22, cz + .03, [q.dx, q.dy, q.dz], .06, .08, .04, CAR[1], CAR[3]); const hlp = P(q.x + fx * .29, q.y + fy * .29, cz + .05); rect(c2, hlp[0] - 1, hlp[1] - 1, 2, 2, CAR[2]); }
-        [-1, 1].forEach((s, k) => { const h = P(q.x + rr[0] * .055 * s, q.y + rr[1] * .055 * s, cz + .34); rider(c2, h[0], h[1], S.cols[(ci * 2 + k) % S.cols.length], HAIR[(ci + k) % HAIR.length], dn || loop, (ci * 2 + k) % 3 === 1); });
+        [-1, 1].forEach((s, k) => { const h = P(q.x + rr[0] * .055 * s, q.y + rr[1] * .055 * s, cz + .34); rider(c2, h[0], h[1], S.cols[(ci * 2 + k) % S.cols.length], HAIR[(ci + k) % HAIR.length], dn || loop, (ci * 2 + k) % 3 === 1, fface); });
         // gelber Haltebügel vor den Fahrgästen
         const b0 = P(q.x + fx * .09 + rr[0] * .1, q.y + fy * .09 + rr[1] * .1, cz + .24), b1 = P(q.x + fx * .09 - rr[0] * .1, q.y + fy * .09 - rr[1] * .1, cz + .24); pl(c2, b0[0], b0[1], b1[0], b1[1], CAR[2], 1);
       } });

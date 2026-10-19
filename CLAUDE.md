@@ -24,7 +24,8 @@ Isometrisches Achterbahn-Puzzle für den Browser. Quellen in `hb4/`, gebaut zu e
 - Looping: Tropfenform, seitlicher Versatz 0,35. Korkenzieher: Heartline Roll über zwei Felder.
 - Stationen je Landschaft: Wiese B1, Winter A2, Wüste D1, Küste C1.
 - Icons: breites Band ohne Querstriche, Pfeile für Anstieg/Abfahrt, Looping als Seitenansicht, Korkenzieher als Drehung um Mittelrohr. Schwellen auf der Strecke im Park bleiben.
-- Wagen cremeweiß (nicht Streckenfarbe). Ergebnisfenster mittig.
+- Wagen cremeweiß (nicht Streckenfarbe). Ergebnisfenster mittig. Köpfe folgen der Fahr-/Laufrichtung (`head`, face f/b/l/r): Schlange von hinten, Fahrgäste je nach Richtung.
+- Texte: ganze Sätze, kein Slogan im Menü, „generiert“ statt „erzeugt“.
 - Kreuzungen erst mit eigenen neuen Leveln freischalten (`cross:true`).
 - Steuerung bleibt bis zu einem möglichen Handheld-Port unverändert.
 
