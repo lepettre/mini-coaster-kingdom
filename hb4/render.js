@@ -375,6 +375,16 @@
     rect(c, x - 1, y - 1, 13, 12, R.base[0]); rect(c, x, y, 11, 10, '#FFFFFF'); rect(c, x + 2, y + 10, 3, 1, '#FFFFFF'); rect(c, x + 1, y + 10, 1, 2, R.base[0]); rect(c, x + 2, y + 11, 1, 2, R.base[0]); rect(c, x + 3, y + 11, 2, 1, R.base[0]);
     rows.forEach((r, j) => { for (let i = 0; i < 7; i++) if (r[i] !== '.') rect(c, x + 2 + i, y + 1 + j, 1, 1, col[r[i]]); });
   }
+  // Wagen in eigener Farbe (nicht Streckenfarbe): cremeweiß, vorderer Wagen mit Schnauze und Scheinwerfer
+  const CAR = ['#E9E3D3', '#C9C1AE', '#F2C12E', '#6B6457'];
+  // Fahrgast im Wagen (Kopfmitte hx,hy): Shirt mit Schatten, Gesicht mit Augen und Schatten, Haare mit Glanz oder Mütze, Arme hoch mit Händen
+  function rider(c, hx, hy, gc, hair, up, cap) {
+    rect(c, hx - 2, hy + 2, 4, 3, gc); rect(c, hx + 1, hy + 2, 1, 3, shade(gc, .7));
+    rect(c, hx - 2, hy - 2, 4, 4, R.skin[2]); rect(c, hx + 1, hy - 1, 1, 3, R.skin[1]); rect(c, hx - 1, hy, 1, 1, R.base[0]); rect(c, hx + 1, hy, 1, 1, R.base[0]);
+    if (cap) { rect(c, hx - 2, hy - 3, 4, 2, R.red[2]); rect(c, hx - 3, hy - 2, 2, 1, R.red[1]); }
+    else { rect(c, hx - 2, hy - 3, 4, 2, hair); rect(c, hx + 1, hy - 1, 1, 1, hair); rect(c, hx - 2, hy - 3, 1, 1, shade(hair, 1.3)); }
+    if (up) { rect(c, hx - 4, hy - 1, 1, 3, gc); rect(c, hx + 3, hy - 1, 1, 3, shade(gc, .7)); rect(c, hx - 4, hy - 4, 1, 3, R.skin[2]); rect(c, hx + 3, hy - 4, 1, 3, R.skin[1]); }
+  }
   const GCOL = [R.pink[1], R.cyan[1], R.yellow[3], R.lime[1], R.purple[2], R.orange[3], R.red[3]];
   const HAIR = [R.wood[1], R.base[1], R.yellow[1], R.wood[3], R.stone[4]];
 
@@ -466,17 +476,22 @@
           let N, rv; if (q.ty === 'L') { const ev = q.ev, sn = Math.sin(q.phi), cs = Math.cos(q.phi); N = [-ev[0] * sn, -ev[1] * sn, cs]; rv = [-ev[1], ev[0], 0]; } else { const sn = Math.sin(q.rot), cs = Math.cos(q.rot), cp = q.cp; N = [-cp[0] * sn, -cp[1] * sn, cs]; rv = [cp[0] * cs, cp[1] * cs, sn]; }
           const F = [q.dx, q.dy, q.dz], op = { up: N, r: rv };
           const at = (h, sd) => [q.x + N[0] * h + rv[0] * (sd || 0), q.y + N[1] * h + rv[1] * (sd || 0), q.z + N[2] * h + rv[2] * (sd || 0)];
-          const b0 = at(.14); obox(c2, P, b0[0], b0[1], b0[2], F, .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0], op);
+          const b0 = at(.14); obox(c2, P, b0[0], b0[1], b0[2], F, .17, .12, .07, CAR[0], CAR[3], op);
           const b1 = at(.21); obox(c2, P, b1[0], b1[1], b1[2], F, .1, .115, .018, R.base[1], null, op);
           [-1, 1].forEach((s2, k) => { const gc = S.cols[(ci * 2 + k) % S.cols.length], bp = P(...at(.27, .055 * s2)), hp = P(...at(.34, .055 * s2)), ha = P(...at(.38, .055 * s2)), tp = P(...at(.55, .055 * s2 * 1.6));
             rect(c2, bp[0] - 2, bp[1] - 1, 4, 3, gc); rect(c2, hp[0] - 2, hp[1] - 2, 4, 4, R.skin[2]); rect(c2, ha[0] - 2, ha[1] - 1, 4, 2, HAIR[(ci + k) % HAIR.length]); pl(c2, hp[0], hp[1], tp[0], tp[1], R.skin[2], 1); });
           return;
         }
         const dn = q.dz < -.02, loop = q.ty === 'L', hl = Math.hypot(q.dx, q.dy) || 1, rr = [-q.dy / hl, q.dx / hl];
-        obox(c2, P, q.x, q.y, cz + .06, [q.dx, q.dy, q.dz], .17, .12, .07, ci === 0 ? tc[2] : tc[3], R.base[0]);
-        obox(c2, P, q.x - q.dx / hl * .02, q.y - q.dy / hl * .02, cz + .13, [q.dx, q.dy, q.dz], .1, .115, .018, R.base[1], null);
-        if (ci === 0) obox(c2, P, q.x + q.dx / hl * .22, q.y + q.dy / hl * .22, cz + .03, [q.dx, q.dy, q.dz], .06, .08, .04, tc[1], R.base[0]);
-        [-1, 1].forEach((s, k) => { const h = P(q.x + rr[0] * .055 * s, q.y + rr[1] * .055 * s, cz + .34); const gc = S.cols[(ci * 2 + k) % S.cols.length]; rect(c2, h[0] - 2, h[1] - 2, 4, 4, R.skin[2]); rect(c2, h[0] - 2, h[1] - 3, 4, 2, HAIR[(ci + k) % HAIR.length]); rect(c2, h[0] - 2, h[1] + 2, 4, 3, gc); if (dn || loop) { rect(c2, h[0] - 4, h[1] - 6, 1, 6, R.skin[2]); rect(c2, h[0] + 3, h[1] - 6, 1, 6, R.skin[2]); } });
+        const fx = q.dx / hl, fy = q.dy / hl;
+        // Räder (dunkel, unter dem Wagenkasten)
+        [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(w => { const p = P(q.x + fx * .12 * w[0] + rr[0] * .11 * w[1], q.y + fy * .12 * w[0] + rr[1] * .11 * w[1], cz - .01); rect(c2, p[0] - 1, p[1] - 1, 2, 2, R.base[0]); });
+        obox(c2, P, q.x, q.y, cz + .06, [q.dx, q.dy, q.dz], .17, .12, .08, CAR[0], CAR[3]);
+        obox(c2, P, q.x - q.dx / hl * .02, q.y - q.dy / hl * .02, cz + .15, [q.dx, q.dy, q.dz], .09, .08, .018, R.base[1], null);
+        if (ci === 0) { obox(c2, P, q.x + fx * .22, q.y + fy * .22, cz + .03, [q.dx, q.dy, q.dz], .06, .08, .04, CAR[1], CAR[3]); const hlp = P(q.x + fx * .29, q.y + fy * .29, cz + .05); rect(c2, hlp[0] - 1, hlp[1] - 1, 2, 2, CAR[2]); }
+        [-1, 1].forEach((s, k) => { const h = P(q.x + rr[0] * .055 * s, q.y + rr[1] * .055 * s, cz + .34); rider(c2, h[0], h[1], S.cols[(ci * 2 + k) % S.cols.length], HAIR[(ci + k) % HAIR.length], dn || loop, (ci * 2 + k) % 3 === 1); });
+        // gelber Haltebügel vor den Fahrgästen
+        const b0 = P(q.x + fx * .09 + rr[0] * .1, q.y + fy * .09 + rr[1] * .1, cz + .24), b1 = P(q.x + fx * .09 - rr[0] * .1, q.y + fy * .09 - rr[1] * .1, cz + .24); pl(c2, b0[0], b0[1], b1[0], b1[1], CAR[2], 1);
       } });
     });
     dyn.sort((a, b) => a.d - b.d); let di = 0;

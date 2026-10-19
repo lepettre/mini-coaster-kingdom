@@ -20,7 +20,7 @@ Du baust in einem kleinen Freizeitpark eine Achterbahn – Teil für Teil, vom L
 
 ## Status: experimentell
 
-Das Projekt ist ein privates Hobby- und Lernprojekt. Es ist **nicht kommerziell**, unfertig und kann sich jederzeit ändern; Spielstände können bei größeren Änderungen zurückgesetzt werden. Es wurde mit Unterstützung von KI-Werkzeugen (Claude) entwickelt.
+Das Projekt ist ein privates Hobby- und Lernprojekt. Es ist **nicht kommerziell**, unfertig und kann sich jederzeit ändern; Spielstände können bei größeren Änderungen zurückgesetzt werden.
 
 ## Spielen
 
